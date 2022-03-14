@@ -22,6 +22,8 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #ifndef _VIRTUAL_CABINET
 #define _VIRTUAL_CABINET
 
+#include <atomic>
+
 namespace virtual_cabinet {
 
     namespace field_io {
@@ -43,7 +45,7 @@ namespace virtual_cabinet {
                 return *this;
             };
         private:
-            State m_state{State::off};
+            std::atomic<State> m_state{State::off};
         };
 
         struct InputTag {
@@ -527,6 +529,10 @@ namespace virtual_cabinet {
         } // end of namespace field_io::input
 
     } // end of namespace field_io
+
+    template<typename T> requires std::is_base_of_v<field_io::FieldIO, T> && T::io_category
+    T fio;
+
 
 } // end of namespace virtual_cabinet
 
