@@ -22,8 +22,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <virtual_cabinet.hpp>
 
-using namespace virtual_cabinet;
-
 int main() {
-   std::cout << "Finish test." << "\n";
+   std::cout << atc::controller_unit::phase::max_phase_groups << "\n";
+   return 0;
 }
