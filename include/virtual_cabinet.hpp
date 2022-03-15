@@ -27,726 +27,799 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 namespace atc {
 
-    enum class State : uint16_t
-    {
-        off = 0, on = 1
-    };
-    
-    namespace cu {
-        namespace phase {
-            constexpr uint16_t max_phases{40};
-            constexpr uint16_t max_phase_groups{5};
-        }
+    namespace phase {
+        constexpr uint16_t max_phases{40};
+        constexpr uint16_t max_phase_groups{5};
+    }
 
-        namespace detector {
-            constexpr uint16_t max_vehicle_detectors{128};
-            constexpr uint16_t max_vehicle_detector_status_groups{40};
-            constexpr uint16_t max_pedestrian_detectors{72};
-        }
+    namespace detector {
+        constexpr uint16_t max_vehicle_detectors{128};
+        constexpr uint16_t max_vehicle_detector_status_groups{40};
+        constexpr uint16_t max_pedestrian_detectors{72};
+    }
 
-        namespace ring {
-            constexpr uint16_t max_rings{16};
-            constexpr uint16_t max_sequences{20};
-            constexpr uint16_t max_ring_control_groups{2};
+    namespace ring {
+        constexpr uint16_t max_rings{16};
+        constexpr uint16_t max_sequences{20};
+        constexpr uint16_t max_ring_control_groups{2};
 
-        }
+    }
 
-        namespace channel {
-            constexpr uint16_t max_channels{32};
-            constexpr uint16_t max_channel_status_groups{4};
-        }
+    namespace channel {
+        constexpr uint16_t max_channels{32};
+        constexpr uint16_t max_channel_status_groups{4};
+    }
 
-        namespace overlap {
-            constexpr uint16_t max_overlaps{32};
-            constexpr uint16_t max_overlap_status_groups{4};
-        }
+    namespace overlap {
+        constexpr uint16_t max_overlaps{32};
+        constexpr uint16_t max_overlap_status_groups{4};
+    }
 
-        namespace preempt {
-            constexpr uint16_t max_preempts{40};
-        }
+    namespace preempt {
+        constexpr uint16_t max_preempts{40};
+    }
 
-        namespace unit {
-            constexpr uint16_t max_alarm_groups{1};
-            constexpr uint16_t max_special_function_outputs{16};
-        }
+    namespace unit {
+        constexpr uint16_t max_alarm_groups{1};
+        constexpr uint16_t max_special_function_outputs{16};
+    }
 
-        namespace coord {
-            constexpr uint16_t max_patterns{128};
-            constexpr uint16_t max_splits{128};
-        }
+    namespace coord {
+        constexpr uint16_t max_patterns{128};
+        constexpr uint16_t max_splits{128};
+    }
 
-        namespace timebase_asc {
-            constexpr uint16_t max_timebase_asc_actions{64};
-        }
+    namespace timebase_asc {
+        constexpr uint16_t max_timebase_asc_actions{64};
+    }
 
-        namespace prioritor {
-            constexpr uint16_t max_prioritors{16};
-            constexpr uint16_t max_prioritor_groups{9};
-        }
-    } // end of cu
+    namespace prioritor {
+        constexpr uint16_t max_prioritors{16};
+        constexpr uint16_t max_prioritor_groups{9};
+    }
 
-    namespace fio {
-        using fio_index_t = uint16_t;
+    namespace io {
+        using io_index_t = uint16_t;
 
-        struct fio_input_t
+        enum class Bit : bool
+        {
+            off = false, on = true
+        };
+
+        using Byte = uint8_t;
+        using Word = uint16_t;
+
+        struct io_input_category
         {
         };
 
-        struct fio_output_t
+        struct io_output_category
         {
-        };
-
-        template<typename T, fio_index_t I = 0> requires std::is_same_v<T, fio_input_t> || std::is_same_v<T, fio_output_t>
-        class FieldIO
-        {
-        public:
-            using io_catetory = T;
-
-            FieldIO() = default;
-
-            FieldIO(const State a_state) = delete;
-
-            FieldIO(FieldIO &rhs) = delete;
-
-            FieldIO(FieldIO &&rhs) = delete;
-
-            FieldIO &operator=(FieldIO &rhs) = delete;
-
-            FieldIO &operator=(FieldIO &&rhs) = delete;
-
-            static constexpr fio_index_t fio_index{I};
-            std::atomic<State> state{State::off};
         };
 
         template<typename T>
-        concept is_fio_type = requires {
-            std::is_same_v<typename T::FieldIO::io_catetory, fio_input_t> || std::is_same_v<typename T::FieldIO::io_catetory, fio_output_t>;
+        concept is_io_category = requires {
+            std::is_same_v<T, io_input_category> || std::is_same_v<T, io_input_category>;
         };
 
-        template<typename T> requires is_fio_type<T>
-        using IOCatetory = typename T::FieldIO::io_catetory;
+        template<typename T>
+        concept is_valid_io_value_t = requires {
+            std::is_same_v<T, Bit> || std::is_same_v<T, Byte> || std::is_same_v<T, Word>;
+        };
 
-        constexpr bool is_valid_fio_index(fio_index_t I, uint16_t N) {
+        template<typename ValueT, typename CategoryT, io_index_t I = 0> requires is_io_category<CategoryT> && is_valid_io_value_t<ValueT>
+        struct IO
+        {
+            using io_catetory = CategoryT;
+            using value_t = ValueT;
+
+            IO() = default;
+
+            IO(IO &) = delete;
+
+            IO(IO &&) = delete;
+
+            IO &operator=(IO &) = delete;
+
+            IO &operator=(IO &&) = delete;
+
+            static constexpr io_index_t fio_index{I};
+            std::atomic<ValueT> value{};
+        };
+
+        template<typename T>
+        concept is_io = requires {
+            std::is_same_v<typename T::IO::io_catetory, io_input_category>
+            || std::is_same_v<typename T::IO::io_catetory, io_output_category>;
+        };
+
+        template<typename T>
+        concept is_bit_io = requires {
+            std::is_same_v<typename T::IO::value_t, Bit>
+            && (std::is_same_v<typename T::IO::io_catetory, io_input_category>
+                || std::is_same_v<typename T::IO::io_catetory, io_output_category>);
+        };
+
+        template<typename T>
+        concept is_byte_io = requires {
+            std::is_same_v<typename T::IO::value_t, uint8_t>
+            && (std::is_same_v<typename T::IO::io_catetory, io_input_category>
+                || std::is_same_v<typename T::IO::io_catetory, io_output_category>);
+        };
+
+        template<typename T>
+        concept is_word_io = requires {
+            std::is_same_v<typename T::IO::value_t, uint16_t>
+            && (std::is_same_v<typename T::IO::io_catetory, io_input_category>
+                || std::is_same_v<typename T::IO::io_catetory, io_output_category>);
+        };
+
+        template<typename T> requires is_io<T>
+        using IOCatetory = typename T::IO::io_catetory;
+
+        constexpr bool is_valid_io_index(io_index_t I, uint16_t N) {
             return (I >= 1) && (I <= N);
         };
 
         namespace output {
 
-            struct AltFlashState : public FieldIO<fio_output_t>
+            struct AltFlashState : public IO<Bit, io_output_category>
             {
             };
 
-            struct AuxFunctionState : public FieldIO<fio_output_t>
+            struct AuxFunctionState : public IO<Bit, io_output_category>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::channel::max_channels))
-            struct ChannelGreenWalkDriver : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, channel::max_channels))
+            struct ChannelGreenWalkDriver : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::channel::max_channels))
-            struct ChannelRedDoNotWalkDriver : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, channel::max_channels))
+            struct ChannelRedDoNotWalkDriver : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::channel::max_channels))
-            struct ChannelYellowRedClearDriver : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, channel::max_channels))
+            struct ChannelYellowRedClearDriver : public IO<Bit, io_output_category, I>
             {
             };
 
-            struct CustomAlarm : public FieldIO<fio_output_t>
+            struct CustomAlarm : public IO<Bit, io_output_category>
             {
             };
 
-            template<fio_index_t I> requires (I >= 1)
-            struct DetectorReset : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (I >= 1)
+            struct DetectorReset : public IO<Bit, io_output_category, I>
             {
             };
 
-            struct FlashState : public FieldIO<fio_output_t>
+            struct FlashState : public IO<Bit, io_output_category>
             {
             };
 
-            struct GlobalVariable : public FieldIO<fio_output_t>
+            struct GlobalVariable : public IO<Bit, io_output_category>
             {
             };
 
-            struct NotActive : public FieldIO<fio_output_t>
+            struct NotActive : public IO<Bit, io_output_category>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::overlap::max_overlaps))
-            struct OverlapGreen : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, overlap::max_overlaps))
+            struct OverlapGreen : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::overlap::max_overlaps))
-            struct OverlapProtectedGreen : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, overlap::max_overlaps))
+            struct OverlapProtectedGreen : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::overlap::max_overlaps))
-            struct OverlapRed : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, overlap::max_overlaps))
+            struct OverlapRed : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::overlap::max_overlaps))
-            struct OverlapYellow : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, overlap::max_overlaps))
+            struct OverlapYellow : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PedCall : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PedCall : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseAdvWarning : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseAdvWarning : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseCheck : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseCheck : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseDoNotWalk : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseDoNotWalk : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseGreen : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseGreen : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseNext : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseNext : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseOmit : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseOmit : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseOn : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseOn : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhasePedClearance : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhasePedClearance : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhasePreClear : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhasePreClear : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhasePreClear2 : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhasePreClear2 : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseRed : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseRed : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseWalk : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseWalk : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseYellow : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseYellow : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptStatus : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptStatus : public IO<Bit, io_output_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptStatusFlash : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptStatusFlash : public IO<Bit, io_output_category, I>
             {
             };
 
-            struct RingStatusBitA : public FieldIO<fio_output_t>
+            struct RingStatusBitA : public IO<Bit, io_output_category>
             {
             };
 
-            struct RingStatusBitB : public FieldIO<fio_output_t>
+            struct RingStatusBitB : public IO<Bit, io_output_category>
             {
             };
 
-            struct RingStatusBitC : public FieldIO<fio_output_t>
+            struct RingStatusBitC : public IO<Bit, io_output_category>
             {
             };
 
-            struct RingStatusBitD : public FieldIO<fio_output_t>
+            struct RingStatusBitD : public IO<Bit, io_output_category>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::unit::max_special_function_outputs))
-            struct SpecialFunction : public FieldIO<fio_output_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, unit::max_special_function_outputs))
+            struct SpecialFunction : public IO<Bit, io_output_category, I>
             {
             };
 
-            struct UnitAutomaticFlash : public FieldIO<fio_output_t>
+            struct UnitAutomaticFlash : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitFaultMonitor : public FieldIO<fio_output_t>
+            struct UnitFaultMonitor : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitFreeCoordStatus : public FieldIO<fio_output_t>
+            struct UnitFreeCoordStatus : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitOffset_1 : public FieldIO<fio_output_t>
+            struct UnitOffset_1 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitOffset_2 : public FieldIO<fio_output_t>
+            struct UnitOffset_2 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitOffset_3 : public FieldIO<fio_output_t>
+            struct UnitOffset_3 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTBCAux_1 : public FieldIO<fio_output_t>
+            struct UnitTBCAux_1 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTBCAux_2 : public FieldIO<fio_output_t>
+            struct UnitTBCAux_2 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTBCAux_3 : public FieldIO<fio_output_t>
+            struct UnitTBCAux_3 : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTimingPlanA : public FieldIO<fio_output_t>
+            struct UnitTimingPlanA : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTimingPlanB : public FieldIO<fio_output_t>
+            struct UnitTimingPlanB : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTimingPlanC : public FieldIO<fio_output_t>
+            struct UnitTimingPlanC : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitTimingPlanD : public FieldIO<fio_output_t>
+            struct UnitTimingPlanD : public IO<Bit, io_output_category>
             {
             };
 
-            struct UnitVoltageMonitor : public FieldIO<fio_output_t>
+            struct UnitVoltageMonitor : public IO<Bit, io_output_category>
             {
             };
 
-            struct Watchdog : public FieldIO<fio_output_t>
+            struct Watchdog : public IO<Bit, io_output_category>
             {
             };
 
-        } // end of namespace fio::output
+        } // end of namespace output
 
         namespace input {
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::detector::max_vehicle_detectors))
-            struct ChannelFaultStatus : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, detector::max_vehicle_detectors))
+            struct ChannelFaultStatus : public IO<Bit, io_input_category, I>
             {
             };
 
-            struct CoordFreeSwitch : public FieldIO<fio_input_t>
+            struct CoordFreeSwitch : public IO<Bit, io_input_category>
             {
             };
 
-            struct CustomAlarm : public FieldIO<fio_input_t>
+            struct CustomAlarm : public IO<Bit, io_input_category>
             {
             };
 
-            struct DoorAjor : public FieldIO<fio_input_t>
+            struct DoorAjor : public IO<Bit, io_input_category>
             {
             };
 
-            struct ManualControlGroupAction : public FieldIO<fio_input_t>
+            struct ManualControlGroupAction : public IO<Bit, io_input_category>
             {
             };
 
-            struct MinGreen_2 : public FieldIO<fio_input_t>
+            struct MinGreen_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct NotActive : public FieldIO<fio_input_t>
+            struct NotActive : public IO<Bit, io_input_category>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::overlap::max_overlaps))
-            struct OverlapOmit : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, overlap::max_overlaps))
+            struct OverlapOmit : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::coord::max_patterns))
-            struct PatternInput : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, coord::max_patterns))
+            struct PatternInput : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I,
-                                                                 cu::detector::max_pedestrian_detectors))
-            struct PedDetCall : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, detector::max_pedestrian_detectors))
+            struct PedDetCall : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseForceOff : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseForceOff : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhaseHold : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhaseHold : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhasePedOmit : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhasePedOmit : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::phase::max_phases))
-            struct PhasePhaseOmit : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, phase::max_phases))
+            struct PhasePhaseOmit : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptGateDown : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptGateDown : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptGateUp : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptGateUp : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptHighPrioritorLow : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptHighPrioritorLow : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptInput : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptInput : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptInputCRC : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptInputCRC : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptInputNormalOff : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptInputNormalOff : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::preempt::max_preempts))
-            struct PreemptInputNormalOn : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, preempt::max_preempts))
+            struct PreemptInputNormalOn : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::prioritor::max_prioritors))
-            struct PrioritorCheckIn : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, prioritor::max_prioritors))
+            struct PrioritorCheckIn : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::prioritor::max_prioritors))
-            struct PrioritorCheckOut : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, prioritor::max_prioritors))
+            struct PrioritorCheckOut : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (I >= 1)
-            struct PrioritorPreemptDetector : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (I >= 1)
+            struct PrioritorPreemptDetector : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingForceOff : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingForceOff : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingInhibitMaxTermination : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingInhibitMaxTermination : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingMax2Selection : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingMax2Selection : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingMax3Selection : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingMax3Selection : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingOmitRedClearance : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingOmitRedClearance : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingPedestrianRecycle : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingPedestrianRecycle : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingRedRest : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingRedRest : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct RingStopTiming : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct RingStopTiming : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::ring::max_rings))
-            struct SpecialFunctionInput : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, ring::max_rings))
+            struct SpecialFunctionInput : public IO<Bit, io_input_category, I>
             {
             };
 
-            struct UnitAlarm_1 : public FieldIO<fio_input_t>
+            struct UnitAlarm_1 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAlarm_2 : public FieldIO<fio_input_t>
+            struct UnitAlarm_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAlternateSequenceA : public FieldIO<fio_input_t>
+            struct UnitAlternateSequenceA : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAlternateSequenceB : public FieldIO<fio_input_t>
+            struct UnitAlternateSequenceB : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAlternateSequenceC : public FieldIO<fio_input_t>
+            struct UnitAlternateSequenceC : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAlternateSequenceD : public FieldIO<fio_input_t>
+            struct UnitAlternateSequenceD : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitAutomaticFlash : public FieldIO<fio_input_t>
+            struct UnitAutomaticFlash : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitCallPedNAPlus : public FieldIO<fio_input_t>
+            struct UnitCallPedNAPlus : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitCallToNonActuated_1 : public FieldIO<fio_input_t>
+            struct UnitCallToNonActuated_1 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitCallToNonActuated_2 : public FieldIO<fio_input_t>
+            struct UnitCallToNonActuated_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitClockReset : public FieldIO<fio_input_t>
+            struct UnitClockReset : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitCMUMMUFlashStatus : public FieldIO<fio_input_t>
+            struct UnitCMUMMUFlashStatus : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitDimming : public FieldIO<fio_input_t>
+            struct UnitDimming : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitExternWatchDog : public FieldIO<fio_input_t>
+            struct UnitExternWatchDog : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitExternalMinRecall : public FieldIO<fio_input_t>
+            struct UnitExternalMinRecall : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitExternalStart : public FieldIO<fio_input_t>
+            struct UnitExternalStart : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIndicatorLampControl : public FieldIO<fio_input_t>
+            struct UnitIndicatorLampControl : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIntervalAdvance : public FieldIO<fio_input_t>
+            struct UnitIntervalAdvance : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIOModeBit_0 : public FieldIO<fio_input_t>
+            struct UnitIOModeBit_0 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIOModeBit_1 : public FieldIO<fio_input_t>
+            struct UnitIOModeBit_1 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIOModeBit_2 : public FieldIO<fio_input_t>
+            struct UnitIOModeBit_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitIOModeBit_3 : public FieldIO<fio_input_t>
+            struct UnitIOModeBit_3 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitITSLocalFlashSense : public FieldIO<fio_input_t>
+            struct UnitITSLocalFlashSense : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitLocalFlash : public FieldIO<fio_input_t>
+            struct UnitLocalFlash : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitLocalFlashSense : public FieldIO<fio_input_t>
+            struct UnitLocalFlashSense : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitManualControlEnable : public FieldIO<fio_input_t>
+            struct UnitManualControlEnable : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitOffset_1 : public FieldIO<fio_input_t>
+            struct UnitOffset_1 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitOffset_2 : public FieldIO<fio_input_t>
+            struct UnitOffset_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitOffset_3 : public FieldIO<fio_input_t>
+            struct UnitOffset_3 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSignalPlanA : public FieldIO<fio_input_t>
+            struct UnitSignalPlanA : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSignalPlanB : public FieldIO<fio_input_t>
+            struct UnitSignalPlanB : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitStopTIme : public FieldIO<fio_input_t>
+            struct UnitStopTIme : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSystemAddressBit_0 : public FieldIO<fio_input_t>
+            struct UnitSystemAddressBit_0 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSystemAddressBit_1 : public FieldIO<fio_input_t>
+            struct UnitSystemAddressBit_1 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSystemAddressBit_2 : public FieldIO<fio_input_t>
+            struct UnitSystemAddressBit_2 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSystemAddressBit_3 : public FieldIO<fio_input_t>
+            struct UnitSystemAddressBit_3 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitSystemAddressBit_4 : public FieldIO<fio_input_t>
+            struct UnitSystemAddressBit_4 : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTBCHoldOnline : public FieldIO<fio_input_t>
+            struct UnitTBCHoldOnline : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTBCOnline : public FieldIO<fio_input_t>
+            struct UnitTBCOnline : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTestInputA : public FieldIO<fio_input_t>
+            struct UnitTestInputA : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTestInputB : public FieldIO<fio_input_t>
+            struct UnitTestInputB : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTestInputC : public FieldIO<fio_input_t>
+            struct UnitTestInputC : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTimingPlanA : public FieldIO<fio_input_t>
+            struct UnitTimingPlanA : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTimingPlanB : public FieldIO<fio_input_t>
+            struct UnitTimingPlanB : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTimingPlanC : public FieldIO<fio_input_t>
+            struct UnitTimingPlanC : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitTimingPlanD : public FieldIO<fio_input_t>
+            struct UnitTimingPlanD : public IO<Bit, io_input_category>
             {
             };
 
-            struct UnitWalkRestModifier : public FieldIO<fio_input_t>
+            struct UnitWalkRestModifier : public IO<Bit, io_input_category>
             {
             };
 
-            template<fio_index_t I> requires (is_valid_fio_index(I, cu::detector::max_vehicle_detectors))
-            struct VehicleDetCall : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (is_valid_io_index(I, detector::max_vehicle_detectors))
+            struct VehicleDetCall : public IO<Bit, io_input_category, I>
             {
             };
 
-            template<fio_index_t I> requires (I >= 1)
-            struct VehicleDetReset : public FieldIO<fio_input_t, I>
+            template<io_index_t I> requires (I >= 1)
+            struct VehicleDetReset : public IO<Bit, io_input_category, I>
             {
             };
-        } // end of namespace fio::input
+        } // end of namespace input
 
-        template<typename T> requires is_fio_type<T>
-        T fio{};
-    } // end of fio
+        template<typename T> requires is_io<T>
+        T io{};
+
+    } // end of namespace io
 
     namespace serial_com {
-
-        struct dataframe_bit_definition_t
+        // A bit backed-up by IO.
+        struct dataframe_bit_t
         {
         };
 
-        template<typename T, uint16_t BitPos> requires fio::is_fio_type<T>
-        struct DataframeBitDefinition
+        struct dataframe_byte_t
         {
-            using type = dataframe_bit_definition_t;
-            T &state{atc::fio::fio<T>.state};
         };
 
-        template<uint16_t FrameID, uint16_t FrameByteSize, typename ...Ts> requires(std::is_same_v<dataframe_bit_definition_t, typename Ts::type> &&...)
-        struct Dataframe
+        struct dataframe_word_t
         {
-            std::tuple<Ts...> bit_definitions;
+        };
+
+        template<typename T, uint16_t BitPos> requires io::is_bit_io<T>
+        struct DataframeBit
+        {
+            using type = dataframe_bit_t;
+            // io::bit_io<T> is the IO using a Bit to store its value. We create a ref here.
+            T &r_bit_io{io::io<T>};
+        };
+
+        template<typename T, uint16_t BytePos> requires io::is_byte_io<T>
+        struct DataframeByte
+        {
+            using type = dataframe_byte_t;
+            // io::byte_io<T> is the IO using a Byte to store its value. We create a ref here.
+            T &r_byte_io{io::io<T>};
+        };
+
+        template<typename T, uint16_t WordPos> requires io::is_word_io<T>
+        struct DataframeWord
+        {
+            using type = dataframe_word_t;
+            // io::word_io<T> is the IO using a Word to store its value. We create a ref here.
+            T &r_word_io{io::io<T>};
+        };
+
+        template<typename T>
+        concept is_valid_dataframe_element = requires {
+            std::is_same_v<dataframe_bit_t, typename T::type>
+            || std::is_same_v<dataframe_byte_t, typename T::type>
+            || std::is_same_v<dataframe_word_t, typename T::type>;
+        };
+
+        template<int16_t FrameID, uint16_t FrameByteSize, typename ...Ts> requires(is_valid_dataframe_element<Ts> &&...)
+        class Dataframe
+        {
+        public:
+            Dataframe() = default;
+
+            Dataframe(Dataframe &) = delete;
+
+            Dataframe(Dataframe &&) = delete;
+
+            Dataframe &operator=(Dataframe &) = delete;
+
+            Dataframe &operator=(Dataframe &&) = delete;
+
+            static constexpr int16_t frame_id{FrameID};
+        private:
+            std::tuple<Ts...> m_frame_definition;
         };
 
     } // end serial_com
-
-
-
 
 } // end of namespace atc
 

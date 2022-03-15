@@ -22,15 +22,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <virtual_cabinet.hpp>
 
-using namespace atc::fio::output;
-using namespace atc::fio;
+using namespace atc::io::output;
 using namespace atc;
 
 int main() {
-    std::cout << atc::cu::phase::max_phase_groups << "\n";
-    auto& b = fio::fio<NotActive>.state;
-    std::cout << uint16_t(State(b)) << "\n";
-    fio::fio<NotActive>.state = State::on;
-    std::cout << uint16_t(State(b)) << "\n";
+    std::cout << "max phases: " << atc::phase::max_phase_groups << "\n";
+    auto& b = io::io<NotActive>.value;
+    std::cout << "is io output: " << std::boolalpha << std::is_same_v<io::IOCatetory<NotActive>, io::io_output_category> << "\n";
+    std::cout << "expect false: " << static_cast<bool>(io::Bit(b)) << "\n";
+    io::io<NotActive>.value = io::Bit::on;
+    std::cout << "expect true: " << static_cast<bool>(io::Bit(b)) << "\n";
     return 0;
 }
