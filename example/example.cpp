@@ -22,7 +22,15 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <virtual_cabinet.hpp>
 
+using namespace atc::fio::output;
+using namespace atc::fio;
+using namespace atc;
+
 int main() {
-   std::cout << atc::controller_unit::phase::max_phase_groups << "\n";
-   return 0;
+    std::cout << atc::cu::phase::max_phase_groups << "\n";
+    auto& b = fio::fio<NotActive>.state;
+    std::cout << uint16_t(State(b)) << "\n";
+    fio::fio<NotActive>.state = State::on;
+    std::cout << uint16_t(State(b)) << "\n";
+    return 0;
 }
