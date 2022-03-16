@@ -28,7 +28,7 @@ using namespace atc;
 int main() {
     std::cout << "max phases: " << atc::phase::max_phase_groups << "\n";
     auto& b = io::io<NotActive>.value;
-    std::cout << "is io output: " << std::boolalpha << std::is_same_v<io::IOCatetory<NotActive>, io::io_output_category> << "\n";
+    std::cout << "is io output: " << std::boolalpha << std::is_same_v<io::IOCatetory<NotActive>, io::io_output_t> << "\n";
     std::cout << "expect false: " << static_cast<bool>(io::Bit(b)) << "\n";
     io::io<NotActive>.value = io::Bit::on;
     std::cout << "expect true: " << static_cast<bool>(io::Bit(b)) << "\n";
