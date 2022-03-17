@@ -1,5 +1,5 @@
 /*
-C++ Virtualization Library of NEMA-TS2 Traffic Controller Assemblies
+C++ Virtualization Library of Traffic Controller Cabinet
 Copyright (C) 2022  Wuping Xin
 
 GNU GPL v3 License
