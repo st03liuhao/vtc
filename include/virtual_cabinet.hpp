@@ -161,7 +161,7 @@ namespace atc {
         };
 
         template<typename T> requires is_cu_variable<T>
-        T cu{};
+        T variable{};
     } // end of namespace cu
 
     namespace io {
@@ -518,20 +518,20 @@ namespace atc {
         } // end of namespace input
 
         template<typename T> requires is_io_variable<T>
-        T io{};
+        T variable{};
 
     } // end of namespace io
 
     template<typename T>
     requires io::is_io_variable<T>
     constexpr T &variable() {
-        return io::io<T>;
+        return io::variable<T>;
     }
 
     template<typename T>
     requires cu::is_cu_variable<T>
     constexpr T &variable() {
-        return cu::cu<T>;
+        return cu::variable<T>;
     }
 
     namespace serialbus {

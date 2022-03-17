@@ -19,19 +19,21 @@ You should have received a copy of the GNU General Public License with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
 #include <virtual_cabinet.hpp>
 
-using namespace atc::io::output;
+using namespace atc::io;
 using namespace atc;
 
-int main() {
-    std::cout << "max phases: " << atc::cu::phase::max_phase_groups << "\n";
-    auto& b = io::io<NotActive>.value;
-    std::cout << "expect false: " << static_cast<bool>(Bit(b)) << "\n";
-    io::io<NotActive>.value = Bit::on;
-    std::cout << "expect true: " << static_cast<bool>(Bit(b)) << "\n";
-    std::cout << "expected false: " << std::is_same_v<io::IOVariableType, decltype(io::io<NotActive>.value)> << "\n";
-    std::cout << "expected true: " << std::is_same_v<io::IOVariableType, NotActive::type> << "\n";
-    return 0;
+TEST_CASE("NotActive output can be changed") {
+    io::variable<output::NotActive>.value = Bit::off;
+    CHECK(io::variable<output::NotActive>.value == Bit::off);
+
+    io::variable<output::NotActive>.value = Bit::on;
+    CHECK(io::variable<output::NotActive>.value == Bit::on);
+
+    CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
+    CHECK(std::is_same_v<output::NotActive::value_t , Bit>);
+    CHECK(std::is_same_v<output::NotActive::type, io::IOVariableType>);
 }
