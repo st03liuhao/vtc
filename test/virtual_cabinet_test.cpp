@@ -26,14 +26,22 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 using namespace atc::io;
 using namespace atc;
 
-TEST_CASE("NotActive output can be changed") {
-    io::variable<output::NotActive>.value = Bit::off;
-    CHECK(io::variable<output::NotActive>.value == Bit::off);
+TEST_CASE("NotActive output can be set") {
+  io::variable<output::NotActive>.value = Bit::off;
+  CHECK(io::variable<output::NotActive>.value == Bit::off);
 
-    io::variable<output::NotActive>.value = Bit::on;
-    CHECK(io::variable<output::NotActive>.value == Bit::on);
+  io::variable<output::NotActive>.value = Bit::on;
+  CHECK(io::variable<output::NotActive>.value == Bit::on);
 
-    CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
-    CHECK(std::is_same_v<output::NotActive::value_t , Bit>);
-    CHECK(std::is_same_v<output::NotActive::type, io::IOVariableType>);
+  CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
+  CHECK(std::is_same_v<output::NotActive::value_t, Bit>);
+  CHECK(std::is_same_v<output::NotActive::type, io::IOVariableType>);
+}
+
+TEST_CASE("ChannelGreenWalkDriver output can be set") {
+  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::off;
+  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::off);
+
+  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::on;
+  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::on);
 }
