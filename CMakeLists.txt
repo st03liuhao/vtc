@@ -14,4 +14,4 @@ target_include_directories(
     $<INSTALL_INTERFACE:include>
 )
 
-add_subdirectory(example)
+add_subdirectory(test)

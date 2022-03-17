@@ -553,11 +553,11 @@ namespace atc {
                 ref_var.value = static_cast<Bit>(l_value);
             }
 
-            void operator>>(const std::span<Byte> a_data_in) {
+            void operator>>(const std::span<Byte> a_data_out) {
                 static constexpr auto l_byte_pos = BitPos / sizeof(Byte);
                 static constexpr auto l_num_of_bits_to_shift = BitPos % sizeof(Byte);
                 Byte i = (ref_var.value = Bit::on) ? 1 : 0;
-                a_data_in[l_byte_pos] = a_data_in[l_byte_pos] | (i << l_num_of_bits_to_shift);
+                a_data_out[l_byte_pos] = a_data_out[l_byte_pos] | (i << l_num_of_bits_to_shift);
             }
 
             size_t pos{BitPos};
