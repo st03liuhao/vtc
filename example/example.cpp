@@ -26,11 +26,12 @@ using namespace atc::io::output;
 using namespace atc;
 
 int main() {
-    std::cout << "max phases: " << atc::phase::max_phase_groups << "\n";
+    std::cout << "max phases: " << atc::cu::phase::max_phase_groups << "\n";
     auto& b = io::io<NotActive>.value;
-    std::cout << "is io output: " << std::boolalpha << std::is_same_v<io::IOCatetory<NotActive>, io::io_output_t> << "\n";
-    std::cout << "expect false: " << static_cast<bool>(io::Bit(b)) << "\n";
-    io::io<NotActive>.value = io::Bit::on;
-    std::cout << "expect true: " << static_cast<bool>(io::Bit(b)) << "\n";
+    std::cout << "expect false: " << static_cast<bool>(Bit(b)) << "\n";
+    io::io<NotActive>.value = Bit::on;
+    std::cout << "expect true: " << static_cast<bool>(Bit(b)) << "\n";
+    std::cout << "expected false: " << std::is_same_v<io::IOVariableType, decltype(io::io<NotActive>.value)> << "\n";
+    std::cout << "expected true: " << std::is_same_v<io::IOVariableType, NotActive::type> << "\n";
     return 0;
 }
