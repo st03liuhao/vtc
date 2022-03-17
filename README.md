@@ -12,4 +12,4 @@ Requires a C++ compiler that supports C++20 and 23.
 
 ## Further Usage
 
-Examine the [test cases](https://github.com/wxinix/virtual_cabinet/test/virtual_cabinet_test.cpp) to learn how to use this library.
+Examine the [test cases](https://github.com/wxinix/virtual_cabinet/blob/master/test/virtual_cabinet_test.cpp) to learn how to use this library.
