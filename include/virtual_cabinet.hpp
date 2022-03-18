@@ -984,7 +984,15 @@ using InputStatusRequestFrame
     3,
     SSR_CommandFrameType
 >;
-}
+
+using MMUProgrammingRequestFrame
+= Frame<
+    0x03, // FrameID
+    3,
+    SSR_CommandFrameType
+>;
+
+} // end of namespace atc::mmu
 
 namespace biu {
 

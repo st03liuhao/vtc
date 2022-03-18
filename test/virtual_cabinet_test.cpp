@@ -80,3 +80,11 @@ TEST_CASE("mmu::InputStatusRequestFrame can be parsed") {
 
   CHECK(l_frame.frame_id == 0x01);
 }
+
+TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed") {
+  mmu::MMUProgrammingRequestFrame  l_frame;
+  std::array<Byte, 3> l_data = {0x10, 0x83, 0x03};
+  l_frame << l_data;
+
+  CHECK(l_frame.frame_id == 0x03);
+}
