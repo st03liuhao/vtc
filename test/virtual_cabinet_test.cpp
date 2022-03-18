@@ -72,3 +72,11 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
   CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<3>>.value == Bit::off);
   CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<4>>.value == Bit::on);
 }
+
+TEST_CASE("mmu::InputStatusRequestFrame can be parsed") {
+  mmu::InputStatusRequestFrame  l_frame;
+  std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
+  l_frame << l_data;
+
+  CHECK(l_frame.frame_id == 0x01);
+}

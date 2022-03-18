@@ -814,16 +814,16 @@ public:
 private:
   template<size_t I = 0>
   inline void assign(const std::span<const Byte, FrameByteSize> a_data_in) {
-    std::get<I>(m_frame_elements) << a_data_in;
-    if constexpr (I + 1 != sizeof...(Ts)) {
+    if constexpr (I < sizeof...(Ts)) {
+      std::get<I>(m_frame_elements) << a_data_in;
       assign<I + 1>(a_data_in);
     }
   }
 
   template<size_t I = 0>
   inline void generate(const std::span<Byte, FrameByteSize> a_data_out) {
-    std::get<I>(m_frame_elements) >> a_data_out;
-    if constexpr (I + 1 != sizeof...(Ts)) {
+    if constexpr (I < sizeof...(Ts)) {
+      std::get<I>(m_frame_elements) >> a_data_out;
       generate < I + 1 > (a_data_out);
     }
   }
@@ -851,8 +851,8 @@ namespace mmu {
  */
 using LoadSwitchDriverFrame
 = Frame<
-    0,   // FrameID
-    16,  // Total Byte Size of the frame.
+    0x00, // FrameID
+    16,   // Total Byte Size of the frame.
     SSR_CommandFrameType,
     // ----------------------------------------------
     // Byte 0 - Address, 0x10 for MMU
@@ -976,6 +976,13 @@ using LoadSwitchDriverFrame
     // Byte 15 : Bit 0x78 ~ 0x7E are reserved bits.
     // ----------------------------------------------
     FrameBit<LoadSwitchFlash, 0x7F>
+>;
+
+using InputStatusRequestFrame
+= Frame<
+    0x01, // FrameID
+    3,
+    SSR_CommandFrameType
 >;
 }
 
