@@ -692,7 +692,7 @@ struct FrameBit {
 
   void operator<<(const std::span<const Byte> a_data_in) {
     static auto l_bytepos = pos / 8;
-    static auto l_nbits_to_shift = pos % 8 ;
+    static auto l_nbits_to_shift = pos % 8;
     auto l_value = (a_data_in[l_bytepos] & (0x01 << l_nbits_to_shift)) != 0;
     ref_var.value = static_cast<Bit>(l_value);
   }
@@ -741,29 +741,29 @@ struct FrameWord {
   T &ref_var{variable<T>()};
 };
 
-// Primary Station Out
-struct PrimaryStationGeneratedCommandFrameType {
+// Primary Station Generated Command Frame
+struct PSG_CommandFrameType {
 };
 
-// Primary Station In
-struct PrimaryStationReceivedResponseFrameType {
+// Primary Station Received Response Frame
+struct PSR_ResponseFrameType {
 };
 
-// Secondary Station In
-struct SecondaryStationReceivedCommandFrameType {
+// Secondary Station Received Command Frame
+struct SSR_CommandFrameType {
 };
 
-// Secondary Station Out
-struct SecondaryStationGeneratedResponseFrameType {
+// Secondary Station Generated Response Frame
+struct SSG_ResponseFrameType {
 };
 
 template<typename T>
 concept is_valid_primary_station_frame
-= std::is_same_v<T, PrimaryStationGeneratedCommandFrameType> || std::is_same_v<T, PrimaryStationReceivedResponseFrameType>;
+= std::is_same_v<T, PSG_CommandFrameType> || std::is_same_v<T, PSR_ResponseFrameType>;
 
 template<typename T>
 concept is_valid_secondary_station_frame
-= std::is_same_v<T, SecondaryStationReceivedCommandFrameType> || std::is_same_v<T, SecondaryStationGeneratedResponseFrameType>;
+= std::is_same_v<T, SSR_CommandFrameType> || std::is_same_v<T, SSG_ResponseFrameType>;
 
 template<typename T>
 concept is_valid_frame
@@ -775,11 +775,11 @@ concept is_valid_frame_and_elem
 
 template<typename T>
 concept is_generative_frame
-= std::is_same_v<T, PrimaryStationGeneratedCommandFrameType> || std::is_same_v<T, SecondaryStationGeneratedResponseFrameType>;
+= std::is_same_v<T, PSG_CommandFrameType> || std::is_same_v<T, SSG_ResponseFrameType>;
 
 template<typename T>
 concept is_receivable_frame
-= std::is_same_v<T, PrimaryStationReceivedResponseFrameType> || std::is_same_v<T, SecondaryStationReceivedCommandFrameType>;
+= std::is_same_v<T, PSR_ResponseFrameType> || std::is_same_v<T, SSR_CommandFrameType>;
 
 template<Byte FrameID, size_t FrameByteSize, typename T, typename ...Ts> requires is_valid_frame_and_elem<T, Ts...>
 class Frame {
@@ -833,109 +833,149 @@ private:
 
 namespace mmu {
 
+/* MMU LoadSwitchDriverFrame (TYPE 0 Command Frame)
+   For each channel, there are two bits for dimming purpose
+   ----------------------------------------------------
+   LS+ Bit   LS- Bit    Function
+   ----------------------------------------------------
+   0         0          OFF
+   1         0          Dimmed by eliminating + halfwave
+   0         1          Dimmed by eliminating - halfwave
+   1         1          ON
+   ----------------------------------------------------
+
+   In the frame definition, we use the same MMU variable to
+   back-up both the positive and negative bit, thus it will
+   be having a state of either 00 (OFF) or 11 (ON), without
+   considering the dimming.
+ */
 using LoadSwitchDriverFrame
 = Frame<
     0,   // FrameID
-    16,  // Total Byte Size of the frame. Byte 0 - address; Byte 1 - control; Byte 2 - FrameID
-    SecondaryStationReceivedCommandFrameType,
-    FrameBit<ChannelGreenWalkDriver<1>, 24>, // Bit layout definition starts from the Byte 3.
-    FrameBit<ChannelGreenWalkDriver<1>, 25>,
-    FrameBit<ChannelGreenWalkDriver<2>, 26>,
-    FrameBit<ChannelGreenWalkDriver<2>, 27>,
-    FrameBit<ChannelGreenWalkDriver<3>, 28>,
-    FrameBit<ChannelGreenWalkDriver<3>, 29>,
-    FrameBit<ChannelGreenWalkDriver<4>, 30>,
-    FrameBit<ChannelGreenWalkDriver<4>, 31>,
-    FrameBit<ChannelGreenWalkDriver<5>, 32>,
-    FrameBit<ChannelGreenWalkDriver<5>, 33>,
-    FrameBit<ChannelGreenWalkDriver<6>, 34>,
-    FrameBit<ChannelGreenWalkDriver<6>, 35>,
-    FrameBit<ChannelGreenWalkDriver<7>, 36>,
-    FrameBit<ChannelGreenWalkDriver<7>, 37>,
-    FrameBit<ChannelGreenWalkDriver<8>, 38>,
-    FrameBit<ChannelGreenWalkDriver<8>, 39>,
-    FrameBit<ChannelGreenWalkDriver<9>, 40>,
-    FrameBit<ChannelGreenWalkDriver<9>, 41>,
-    FrameBit<ChannelGreenWalkDriver<10>, 42>,
-    FrameBit<ChannelGreenWalkDriver<10>, 43>,
-    FrameBit<ChannelGreenWalkDriver<11>, 44>,
-    FrameBit<ChannelGreenWalkDriver<11>, 45>,
-    FrameBit<ChannelGreenWalkDriver<12>, 46>,
-    FrameBit<ChannelGreenWalkDriver<12>, 47>,
-    FrameBit<ChannelGreenWalkDriver<13>, 48>,
-    FrameBit<ChannelGreenWalkDriver<13>, 49>,
-    FrameBit<ChannelGreenWalkDriver<14>, 50>,
-    FrameBit<ChannelGreenWalkDriver<14>, 51>,
-    FrameBit<ChannelGreenWalkDriver<15>, 52>,
-    FrameBit<ChannelGreenWalkDriver<15>, 53>,
-    FrameBit<ChannelGreenWalkDriver<16>, 54>,
-    FrameBit<ChannelGreenWalkDriver<16>, 55>,
-    FrameBit<ChannelYellowPedClearDriver<1>, 56>,
-    FrameBit<ChannelYellowPedClearDriver<1>, 57>,
-    FrameBit<ChannelYellowPedClearDriver<2>, 58>,
-    FrameBit<ChannelYellowPedClearDriver<2>, 59>,
-    FrameBit<ChannelYellowPedClearDriver<3>, 60>,
-    FrameBit<ChannelYellowPedClearDriver<3>, 61>,
-    FrameBit<ChannelYellowPedClearDriver<4>, 62>,
-    FrameBit<ChannelYellowPedClearDriver<4>, 63>,
-    FrameBit<ChannelYellowPedClearDriver<5>, 64>,
-    FrameBit<ChannelYellowPedClearDriver<5>, 65>,
-    FrameBit<ChannelYellowPedClearDriver<6>, 66>,
-    FrameBit<ChannelYellowPedClearDriver<6>, 67>,
-    FrameBit<ChannelYellowPedClearDriver<7>, 68>,
-    FrameBit<ChannelYellowPedClearDriver<7>, 69>,
-    FrameBit<ChannelYellowPedClearDriver<8>, 70>,
-    FrameBit<ChannelYellowPedClearDriver<8>, 71>,
-    FrameBit<ChannelYellowPedClearDriver<9>, 72>,
-    FrameBit<ChannelYellowPedClearDriver<9>, 73>,
-    FrameBit<ChannelYellowPedClearDriver<10>, 74>,
-    FrameBit<ChannelYellowPedClearDriver<10>, 75>,
-    FrameBit<ChannelYellowPedClearDriver<11>, 76>,
-    FrameBit<ChannelYellowPedClearDriver<11>, 77>,
-    FrameBit<ChannelYellowPedClearDriver<12>, 78>,
-    FrameBit<ChannelYellowPedClearDriver<12>, 79>,
-    FrameBit<ChannelYellowPedClearDriver<13>, 80>,
-    FrameBit<ChannelYellowPedClearDriver<13>, 81>,
-    FrameBit<ChannelYellowPedClearDriver<14>, 82>,
-    FrameBit<ChannelYellowPedClearDriver<14>, 83>,
-    FrameBit<ChannelYellowPedClearDriver<15>, 84>,
-    FrameBit<ChannelYellowPedClearDriver<15>, 85>,
-    FrameBit<ChannelYellowPedClearDriver<16>, 86>,
-    FrameBit<ChannelYellowPedClearDriver<16>, 87>,
-    FrameBit<ChannelRedDoNotWalkDriver<1>, 88>,
-    FrameBit<ChannelRedDoNotWalkDriver<1>, 89>,
-    FrameBit<ChannelRedDoNotWalkDriver<2>, 90>,
-    FrameBit<ChannelRedDoNotWalkDriver<2>, 91>,
-    FrameBit<ChannelRedDoNotWalkDriver<3>, 92>,
-    FrameBit<ChannelRedDoNotWalkDriver<3>, 93>,
-    FrameBit<ChannelRedDoNotWalkDriver<4>, 94>,
-    FrameBit<ChannelRedDoNotWalkDriver<4>, 95>,
-    FrameBit<ChannelRedDoNotWalkDriver<5>, 96>,
-    FrameBit<ChannelRedDoNotWalkDriver<5>, 97>,
-    FrameBit<ChannelRedDoNotWalkDriver<6>, 98>,
-    FrameBit<ChannelRedDoNotWalkDriver<6>, 99>,
-    FrameBit<ChannelRedDoNotWalkDriver<7>, 100>,
-    FrameBit<ChannelRedDoNotWalkDriver<7>, 101>,
-    FrameBit<ChannelRedDoNotWalkDriver<8>, 102>,
-    FrameBit<ChannelRedDoNotWalkDriver<8>, 103>,
-    FrameBit<ChannelRedDoNotWalkDriver<9>, 104>,
-    FrameBit<ChannelRedDoNotWalkDriver<9>, 105>,
-    FrameBit<ChannelRedDoNotWalkDriver<10>, 106>,
-    FrameBit<ChannelRedDoNotWalkDriver<10>, 106>,
-    FrameBit<ChannelRedDoNotWalkDriver<11>, 108>,
-    FrameBit<ChannelRedDoNotWalkDriver<11>, 109>,
-    FrameBit<ChannelRedDoNotWalkDriver<12>, 110>,
-    FrameBit<ChannelRedDoNotWalkDriver<12>, 111>,
-    FrameBit<ChannelRedDoNotWalkDriver<13>, 112>,
-    FrameBit<ChannelRedDoNotWalkDriver<13>, 113>,
-    FrameBit<ChannelRedDoNotWalkDriver<14>, 114>,
-    FrameBit<ChannelRedDoNotWalkDriver<14>, 115>,
-    FrameBit<ChannelRedDoNotWalkDriver<15>, 116>,
-    FrameBit<ChannelRedDoNotWalkDriver<15>, 117>,
-    FrameBit<ChannelRedDoNotWalkDriver<16>, 118>,
-    FrameBit<ChannelRedDoNotWalkDriver<16>, 119>,
-    // Bit 120 ~ 126 are reserved bits.
-    FrameBit<LoadSwitchFlash, 127>
+    16,  // Total Byte Size of the frame.
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x10 for MMU
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x00 for Type 0 Command Frame
+    // ----------------------------------------------
+    // Byte 3 - Channel Green Driver
+    //-----------------------------------------------
+    FrameBit<ChannelGreenWalkDriver<0x01>, 0x18>,
+    FrameBit<ChannelGreenWalkDriver<0x01>, 0x19>,
+    FrameBit<ChannelGreenWalkDriver<0x02>, 0x1A>,
+    FrameBit<ChannelGreenWalkDriver<0x02>, 0x1B>,
+    FrameBit<ChannelGreenWalkDriver<0x03>, 0x1C>,
+    FrameBit<ChannelGreenWalkDriver<0x03>, 0x1D>,
+    FrameBit<ChannelGreenWalkDriver<0x04>, 0x1E>,
+    FrameBit<ChannelGreenWalkDriver<0x04>, 0x1F>,
+    // Byte 4
+    FrameBit<ChannelGreenWalkDriver<0x05>, 0x20>,
+    FrameBit<ChannelGreenWalkDriver<0x05>, 0x21>,
+    FrameBit<ChannelGreenWalkDriver<0x06>, 0x22>,
+    FrameBit<ChannelGreenWalkDriver<0x06>, 0x23>,
+    FrameBit<ChannelGreenWalkDriver<0x07>, 0x24>,
+    FrameBit<ChannelGreenWalkDriver<0x07>, 0x25>,
+    FrameBit<ChannelGreenWalkDriver<0x08>, 0x26>,
+    FrameBit<ChannelGreenWalkDriver<0x08>, 0x27>,
+    // Byte 5
+    FrameBit<ChannelGreenWalkDriver<0x09>, 0x28>,
+    FrameBit<ChannelGreenWalkDriver<0x09>, 0x29>,
+    FrameBit<ChannelGreenWalkDriver<0x0A>, 0x2A>,
+    FrameBit<ChannelGreenWalkDriver<0x0A>, 0x2B>,
+    FrameBit<ChannelGreenWalkDriver<0x0B>, 0x2C>,
+    FrameBit<ChannelGreenWalkDriver<0x0B>, 0x2D>,
+    FrameBit<ChannelGreenWalkDriver<0x0C>, 0x2E>,
+    FrameBit<ChannelGreenWalkDriver<0x0C>, 0x2F>,
+    // Byte 6
+    FrameBit<ChannelGreenWalkDriver<0x0D>, 0x30>,
+    FrameBit<ChannelGreenWalkDriver<0x0D>, 0x31>,
+    FrameBit<ChannelGreenWalkDriver<0x0E>, 0x32>,
+    FrameBit<ChannelGreenWalkDriver<0x0E>, 0x33>,
+    FrameBit<ChannelGreenWalkDriver<0x0F>, 0x34>,
+    FrameBit<ChannelGreenWalkDriver<0x0F>, 0x35>,
+    FrameBit<ChannelGreenWalkDriver<0x10>, 0x36>,
+    FrameBit<ChannelGreenWalkDriver<0x10>, 0x37>,
+    // ----------------------------------------------
+    // Byte 7 - Channel Yellow Driver
+    // ----------------------------------------------
+    FrameBit<ChannelYellowPedClearDriver<0x01>, 0x38>,
+    FrameBit<ChannelYellowPedClearDriver<0x01>, 0x39>,
+    FrameBit<ChannelYellowPedClearDriver<0x02>, 0x3A>,
+    FrameBit<ChannelYellowPedClearDriver<0x02>, 0x3B>,
+    FrameBit<ChannelYellowPedClearDriver<0x03>, 0x3C>,
+    FrameBit<ChannelYellowPedClearDriver<0x03>, 0x3D>,
+    FrameBit<ChannelYellowPedClearDriver<0x04>, 0x3E>,
+    FrameBit<ChannelYellowPedClearDriver<0x04>, 0x3F>,
+    // Byte 8
+    FrameBit<ChannelYellowPedClearDriver<0x05>, 0x40>,
+    FrameBit<ChannelYellowPedClearDriver<0x05>, 0x41>,
+    FrameBit<ChannelYellowPedClearDriver<0x06>, 0x42>,
+    FrameBit<ChannelYellowPedClearDriver<0x06>, 0x43>,
+    FrameBit<ChannelYellowPedClearDriver<0x07>, 0x44>,
+    FrameBit<ChannelYellowPedClearDriver<0x07>, 0x45>,
+    FrameBit<ChannelYellowPedClearDriver<0x08>, 0x46>,
+    FrameBit<ChannelYellowPedClearDriver<0x08>, 0x47>,
+    // Byte 9
+    FrameBit<ChannelYellowPedClearDriver<0x09>, 0x48>,
+    FrameBit<ChannelYellowPedClearDriver<0x09>, 0x49>,
+    FrameBit<ChannelYellowPedClearDriver<0x0A>, 0x4A>,
+    FrameBit<ChannelYellowPedClearDriver<0x0A>, 0x4B>,
+    FrameBit<ChannelYellowPedClearDriver<0x0B>, 0x4C>,
+    FrameBit<ChannelYellowPedClearDriver<0x0B>, 0x4D>,
+    FrameBit<ChannelYellowPedClearDriver<0x0C>, 0x4E>,
+    FrameBit<ChannelYellowPedClearDriver<0x0C>, 0x4F>,
+    // Byte 10
+    FrameBit<ChannelYellowPedClearDriver<0x0D>, 0x50>,
+    FrameBit<ChannelYellowPedClearDriver<0x0D>, 0x51>,
+    FrameBit<ChannelYellowPedClearDriver<0x0E>, 0x52>,
+    FrameBit<ChannelYellowPedClearDriver<0x0E>, 0x53>,
+    FrameBit<ChannelYellowPedClearDriver<0x0F>, 0x54>,
+    FrameBit<ChannelYellowPedClearDriver<0x0F>, 0x55>,
+    FrameBit<ChannelYellowPedClearDriver<0x10>, 0x56>,
+    FrameBit<ChannelYellowPedClearDriver<0x10>, 0x57>,
+    // ----------------------------------------------
+    // Byte 11 - Channel Red Driver
+    // ----------------------------------------------
+    FrameBit<ChannelRedDoNotWalkDriver<0x01>, 0x58>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x01>, 0x59>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x02>, 0x5A>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x02>, 0x5B>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x03>, 0x5C>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x03>, 0x5D>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x04>, 0x5E>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x04>, 0x5F>,
+    // Byte 12
+    FrameBit<ChannelRedDoNotWalkDriver<0x05>, 0x60>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x05>, 0x61>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x06>, 0x62>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x06>, 0x63>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x07>, 0x64>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x07>, 0x65>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x08>, 0x66>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x08>, 0x67>,
+    // Byte 13
+    FrameBit<ChannelRedDoNotWalkDriver<0x09>, 0x68>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x09>, 0x69>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0A>, 0x6A>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0A>, 0x6B>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0B>, 0x6C>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0B>, 0x6D>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0C>, 0x6E>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0C>, 0x6F>,
+    // Byte 14
+    FrameBit<ChannelRedDoNotWalkDriver<0x0D>, 0x70>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0D>, 0x71>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0E>, 0x72>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0E>, 0x73>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0F>, 0x74>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x0F>, 0x75>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x10>, 0x76>,
+    FrameBit<ChannelRedDoNotWalkDriver<0x10>, 0x77>,
+    // ----------------------------------------------
+    // Byte 15 : Bit 0x78 ~ 0x7E are reserved bits.
+    // ----------------------------------------------
+    FrameBit<LoadSwitchFlash, 0x7F>
 >;
 }
 
