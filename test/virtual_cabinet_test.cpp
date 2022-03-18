@@ -26,7 +26,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 using namespace atc::io;
 using namespace atc;
 
-TEST_CASE("NotActive output can be set") {
+TEST_CASE("io::output::NotActive can be set") {
   io::variable<output::NotActive>.value = Bit::off;
   CHECK(io::variable<output::NotActive>.value == Bit::off);
 
@@ -35,13 +35,40 @@ TEST_CASE("NotActive output can be set") {
 
   CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
   CHECK(std::is_same_v<output::NotActive::value_t, Bit>);
-  CHECK(std::is_same_v<output::NotActive::type, io::IOVariableType>);
+  CHECK(std::is_same_v<output::NotActive::type, IOVariableType>);
 }
 
-TEST_CASE("ChannelGreenWalkDriver output can be set") {
+TEST_CASE("io::output::ChannelGreenWalkDriver can be set") {
   io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::off;
   CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::off);
 
   io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::on;
   CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::on);
+}
+
+TEST_CASE("mmu::LoadSwitchFlash can be set") {
+  mmu::variable<mmu::LoadSwitchFlash>.value = Bit::off;
+  CHECK(mmu::variable<mmu::LoadSwitchFlash>.value == Bit::off);
+
+  mmu::variable<mmu::LoadSwitchFlash>.value = Bit::on;
+  CHECK(mmu::variable<mmu::LoadSwitchFlash>.value == Bit::on);
+}
+
+TEST_CASE("FrameBit can be instantiated") {
+  FrameBit<mmu::LoadSwitchFlash, 127> l_framebit;
+  CHECK(l_framebit.pos == 127);
+}
+
+TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
+  mmu::LoadSwitchDriverFrame l_frame;
+  std::array<Byte, 16>
+      l_data = {0x10, 0x83, 0x00, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
+  l_frame << l_data;
+
+  CHECK(mmu::variable<mmu::LoadSwitchFlash>.value == Bit::on);
+
+  CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<1>>.value == Bit::on);
+  CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<2>>.value == Bit::off);
+  CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<3>>.value == Bit::off);
+  CHECK(mmu::variable<mmu::ChannelGreenWalkDriver<4>>.value == Bit::on);
 }
