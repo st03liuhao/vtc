@@ -845,9 +845,9 @@ namespace mmu {
    ----------------------------------------------------
 
    In the frame definition, we use the same MMU variable to
-   back-up both the positive and negative bit, thus it will
-   be having a state of either 00 (OFF) or 11 (ON), without
-   considering the dimming.
+   back-up both the positive and negative bits, thus having
+   a state of either 00 (OFF) or 11 (ON), ignoring dimming,
+   which is obsolete for modern traffic controllers.
  */
 using LoadSwitchDriverFrame
 = Frame<
@@ -990,6 +990,95 @@ using MMUProgrammingRequestFrame
     0x03, // FrameID
     3,
     SSR_CommandFrameType
+>;
+
+using CUReportedMonth
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedDay
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedYear
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedHour
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedMinutes
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedSeconds
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedTenthsOfSeconds
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+template<index_t I> requires (IsValidIndex(I, 8))
+using TFBIUPresent
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+template<index_t I> requires (IsValidIndex(I, 8))
+using DETBIUPresent
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+using DateTimeBroadcastFrame
+= Frame<
+    0x09, // FrameID
+    12,   // 12 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0xFF for broadcast message
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x09 for Type 9 Command Frame
+    // ----------------------------------------------
+
+    //-----------------------------------------------
+    // Byte 3~9: Mon/Day/Year/Hour/Min/Sec/TenthSec
+    //-----------------------------------------------
+    FrameByte<
+        CUReportedMonth,                  // 1 ~ 12
+        3>,
+    FrameByte<
+        CUReportedDay,                    // 1 ~ 31
+        4>,
+    FrameByte<
+        CUReportedYear,                   // 0 ~ 99
+        5>,
+    FrameByte<
+        CUReportedHour,                   // 0 ~ 23
+        6>,
+    FrameByte<
+        CUReportedMinutes,                // 0 ~ 59
+        7>,
+    FrameByte<
+        CUReportedSeconds,                // 0 ~ 59
+        8>,
+    FrameByte<
+        CUReportedTenthsOfSeconds,        // 0 ~ 9
+        9>,
+
+    //-----------------------------------------------
+    // Byte 10 - TF BIU # 1 ~ 8 Present State
+    //-----------------------------------------------
+    FrameBit<TFBIUPresent<0x01>, 0x50>,
+    FrameBit<TFBIUPresent<0x02>, 0x51>,
+    FrameBit<TFBIUPresent<0x03>, 0x52>,
+    FrameBit<TFBIUPresent<0x04>, 0x53>,
+    FrameBit<TFBIUPresent<0x05>, 0x54>,
+    FrameBit<TFBIUPresent<0x06>, 0x55>,
+    FrameBit<TFBIUPresent<0x07>, 0x56>,
+    FrameBit<TFBIUPresent<0x08>, 0x57>,
+    //-----------------------------------------------
+    // Byte 11 - TF BIU # 1 ~ 8 Present State
+    //-----------------------------------------------
+    FrameBit<DETBIUPresent<0x01>, 0x58>,
+    FrameBit<DETBIUPresent<0x02>, 0x59>,
+    FrameBit<DETBIUPresent<0x03>, 0x5A>,
+    FrameBit<DETBIUPresent<0x04>, 0x5B>,
+    FrameBit<DETBIUPresent<0x05>, 0x5C>,
+    FrameBit<DETBIUPresent<0x06>, 0x5D>,
+    FrameBit<DETBIUPresent<0x07>, 0x5E>,
+    FrameBit<DETBIUPresent<0x08>, 0x5F>
 >;
 
 } // end of namespace atc::mmu
