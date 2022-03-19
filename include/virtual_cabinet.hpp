@@ -648,6 +648,94 @@ struct MMUVariable : Variable<ValueT, I> {
   MMUVariable &operator=(MMUVariable &&) = delete;
 };
 
+//-----------------------------------------------------------------------
+template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+using ChannelGreenWalkStatus
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+using ChannelRedDoNotWalkStatus
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+using ChannelYellowPedClearStatus
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+using ControllerVoltMonitor
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using _24VoltMonitor_I
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using _24VoltMonitor_II
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using Reset
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using ResetEnable
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using Conflict
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using RedFailure
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using DiagnosticFailure
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using MinimumClearanceFailure
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using Port1TimeoutFailure
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using FailedAndOutputRelayTransferred
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using FailedAndImmediateResponse
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using LocalFlashStatus
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using StartupFlashCall
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using FYAFlashRateFailure
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+using MinimumYellowChangeDisable
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+using MinimumFlashTimeBit_0
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using MinimumFlashTimeBit_1
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using MinimumFlashTimeBit_2
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using MinimumFlashTimeBit_3
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using _24VoltLatch
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+using CVMFaultMonitorLatch
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
+/*  The two channel IDs are encoded as the index.
+    index = left-hand-side channel as high-byte, right-hand-size channel as low-byte
+ */
+template<Byte Ix, Byte Iy> requires (IsValidIndex(Ix, cu::Channel::max_Channels) && IsValidIndex(Iy, cu::Channel::max_Channels))
+using ChannelCompatibilityStatus
+= MMUVariable<AUTO_TAG_ID, Bit, (Ix << 8) | Iy>;
+
+//-----------------------------------------------------------------------
 template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelGreenWalkDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
@@ -663,6 +751,35 @@ using ChannelYellowPedClearDriver
 using LoadSwitchFlash
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
+using CUReportedMonth
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedDay
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedYear
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedHour
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedMinutes
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedSeconds
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedTenthsOfSeconds
+= MMUVariable<AUTO_TAG_ID, Byte>;
+
+template<index_t I> requires (IsValidIndex(I, 8))
+using TFBIUPresent
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+
+template<index_t I> requires (IsValidIndex(I, 8))
+using DETBIUPresent
+= MMUVariable<AUTO_TAG_ID, Bit, I>;
+//-----------------------------------------------------------------------
 template<typename T> requires is_mmu_variable<T>
 T variable{};
 
@@ -849,9 +966,9 @@ namespace mmu {
    a state of either 00 (OFF) or 11 (ON), ignoring dimming,
    which is obsolete for modern traffic controllers.
  */
-using LoadSwitchDriverFrame
+using LoadSwitchDriversFrame
 = Frame<
-    0x00, // FrameID
+    0x00, // FrameID = 0
     16,   // Total Byte Size of the frame.
     SSR_CommandFrameType,
     // ----------------------------------------------
@@ -978,48 +1095,34 @@ using LoadSwitchDriverFrame
     FrameBit<LoadSwitchFlash, 0x7F>
 >;
 
-using InputStatusRequestFrame
+using LoadSwitchDriversAckFrame
 = Frame<
-    0x01, // FrameID
+    0x80, // FrameID = 128, Type 0 ACK
+    3,
+    SSG_ResponseFrameType
+>;
+
+using MMUInputStatusRequestFrame
+= Frame<
+    0x01, // FrameID = 1
     3,
     SSR_CommandFrameType
 >;
+
+using MMUInputStatusRequestAckFrame
+= Frame<
+    0x81, // FrameID = 129
+    13,
+    SSG_ResponseFrameType
+>;
+
 
 using MMUProgrammingRequestFrame
 = Frame<
-    0x03, // FrameID
+    0x03, // FrameID = 3
     3,
     SSR_CommandFrameType
 >;
-
-using CUReportedMonth
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedDay
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedYear
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedHour
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedMinutes
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedSeconds
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedTenthsOfSeconds
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-template<index_t I> requires (IsValidIndex(I, 8))
-using TFBIUPresent
-= MMUVariable<AUTO_TAG_ID, Bit, I>;
-
-template<index_t I> requires (IsValidIndex(I, 8))
-using DETBIUPresent
-= MMUVariable<AUTO_TAG_ID, Bit, I>;
 
 using DateTimeBroadcastFrame
 = Frame<

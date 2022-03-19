@@ -69,7 +69,7 @@ TEST_CASE("FrameBit can be instantiated") {
 TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
   using namespace mmu;
 
-  LoadSwitchDriverFrame l_frame;
+  LoadSwitchDriversFrame l_frame;
   std::array<Byte, 16>
       l_data = {0x10, 0x83, 0x00, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
   l_frame << l_data;
@@ -85,7 +85,7 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
 TEST_CASE("mmu::InputStatusRequestFrame can be parsed") {
   using namespace mmu;
 
-  InputStatusRequestFrame l_frame;
+  MMUInputStatusRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
   l_frame << l_data;
 
@@ -121,3 +121,14 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0") {
   CHECK(mmu::variable<TFBIUPresent<1>>.value == Bit::on);
   CHECK(mmu::variable<DETBIUPresent<2>>.value == Bit::on);
 }
+
+TEST_CASE("Two channel IDs can be encoded") {
+  using namespace atc::mmu;
+
+  Byte a = 1;
+  Byte b = 2;
+
+  index_t I = a << 8 | b;
+  CHECK(I == 0x0102);
+}
+
