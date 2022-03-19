@@ -670,10 +670,13 @@ using _24VoltMonitor_I
 using _24VoltMonitor_II
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
+using _24VoltMonitorInhibit
+= MMUVariable<AUTO_TAG_ID, Bit>;
+
 using Reset
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
-using ResetEnable
+using RedEnable
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
 using Conflict
@@ -1113,15 +1116,167 @@ using MMUInputStatusRequestAckFrame
 = Frame<
     0x81, // FrameID = 129
     13,
-    SSG_ResponseFrameType
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x10 for MMU
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x81 for Type 129 Command Frame
+    // ----------------------------------------------
+    // Byte 3 - Channel Green Status 1 ~ 8
+    //-----------------------------------------------
+    FrameBit<ChannelGreenWalkStatus<0x01>, 0x18>,
+    FrameBit<ChannelGreenWalkStatus<0x02>, 0x19>,
+    FrameBit<ChannelGreenWalkStatus<0x03>, 0x1A>,
+    FrameBit<ChannelGreenWalkStatus<0x04>, 0x1B>,
+    FrameBit<ChannelGreenWalkStatus<0x05>, 0x1C>,
+    FrameBit<ChannelGreenWalkStatus<0x06>, 0x1D>,
+    FrameBit<ChannelGreenWalkStatus<0x07>, 0x1E>,
+    FrameBit<ChannelGreenWalkStatus<0x08>, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4 - Channel Green Status 9 ~ 16
+    // ----------------------------------------------
+    FrameBit<ChannelGreenWalkStatus<0x09>, 0x20>,
+    FrameBit<ChannelGreenWalkStatus<0x0A>, 0x21>,
+    FrameBit<ChannelGreenWalkStatus<0x0B>, 0x22>,
+    FrameBit<ChannelGreenWalkStatus<0x0C>, 0x23>,
+    FrameBit<ChannelGreenWalkStatus<0x0D>, 0x24>,
+    FrameBit<ChannelGreenWalkStatus<0x0E>, 0x25>,
+    FrameBit<ChannelGreenWalkStatus<0x0E>, 0x26>,
+    FrameBit<ChannelGreenWalkStatus<0x10>, 0x27>,
+    // ----------------------------------------------
+    // Byte 5 - Channel Yellow Status 1 ~ 8
+    // ----------------------------------------------
+    FrameBit<ChannelYellowPedClearStatus<0x01>, 0x28>,
+    FrameBit<ChannelYellowPedClearStatus<0x02>, 0x29>,
+    FrameBit<ChannelYellowPedClearStatus<0x03>, 0x2A>,
+    FrameBit<ChannelYellowPedClearStatus<0x04>, 0x2B>,
+    FrameBit<ChannelYellowPedClearStatus<0x05>, 0x2C>,
+    FrameBit<ChannelYellowPedClearStatus<0x06>, 0x2D>,
+    FrameBit<ChannelYellowPedClearStatus<0x07>, 0x2E>,
+    FrameBit<ChannelYellowPedClearStatus<0x08>, 0x2F>,
+    // ----------------------------------------------
+    // Byte 6 - Channel Yellow Status 9 ~ 16
+    // ----------------------------------------------
+    FrameBit<ChannelYellowPedClearStatus<0x09>, 0x30>,
+    FrameBit<ChannelYellowPedClearStatus<0x0A>, 0x31>,
+    FrameBit<ChannelYellowPedClearStatus<0x0B>, 0x32>,
+    FrameBit<ChannelYellowPedClearStatus<0x0C>, 0x33>,
+    FrameBit<ChannelYellowPedClearStatus<0x0D>, 0x34>,
+    FrameBit<ChannelYellowPedClearStatus<0x0E>, 0x35>,
+    FrameBit<ChannelYellowPedClearStatus<0x0F>, 0x36>,
+    FrameBit<ChannelYellowPedClearStatus<0x10>, 0x37>,
+    // ----------------------------------------------
+    // Byte 7 - Channel Red Status 1 ~ 8
+    // ----------------------------------------------
+    FrameBit<ChannelRedDoNotWalkStatus<0x01>, 0x38>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x02>, 0x39>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x03>, 0x3A>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x04>, 0x3B>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x05>, 0x3C>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x06>, 0x3D>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x07>, 0x3E>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x08>, 0x3F>,
+    // ----------------------------------------------
+    // Byte 8 - Channel Red Status 9 ~ 16
+    // ----------------------------------------------
+    FrameBit<ChannelRedDoNotWalkStatus<0x09>, 0x40>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0A>, 0x41>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0B>, 0x42>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0C>, 0x43>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0D>, 0x44>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0E>, 0x45>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x0F>, 0x46>,
+    FrameBit<ChannelRedDoNotWalkStatus<0x10>, 0x47>,
+    // ----------------------------------------------
+    // Byte 9
+    // ----------------------------------------------
+    FrameBit<
+        ControllerVoltMonitor,
+        0x48>,
+    FrameBit<
+        _24VoltMonitor_I,
+        0x49>,
+    FrameBit<
+        _24VoltMonitor_II,
+        0x4A>,
+    FrameBit<
+        _24VoltMonitorInhibit,
+        0x4B>,
+    FrameBit<
+        Reset,
+        0x4C>,
+    FrameBit<
+        RedEnable,
+        0x4D>,
+    //  0x4E Reserved
+    //  0x4F Reserved
+    // ----------------------------------------------
+    // Byte 10
+    // ----------------------------------------------
+    FrameBit<
+        Conflict,
+        0x50>,
+    FrameBit<
+        RedFailure,
+        0x51>,
+    //  0x52 Spare
+    //  0x53 Spare
+    //  0x54 Spare
+    //  0x55 Spare
+    //  0x56 Spare
+    //  0x57 Spare
+    // ----------------------------------------------
+    // Byte 11
+    // ----------------------------------------------
+    FrameBit<
+        DiagnosticFailure,
+        0x58>,
+    FrameBit<
+        MinimumClearanceFailure,
+        0x59>,
+    FrameBit<
+        Port1TimeoutFailure,
+        0x5A>,
+    FrameBit<
+        FailedAndOutputRelayTransferred,
+        0x5B>,
+    FrameBit<
+        FailedAndImmediateResponse,
+        0x5C>,
+    //  0x5D Reserved
+    FrameBit<
+        LocalFlashStatus,
+        0x5E>,
+    FrameBit<
+        StartupFlashCall,
+        0x5F>,
+    // ----------------------------------------------
+    // Byte 12
+    // ----------------------------------------------
+    FrameBit<
+        FYAFlashRateFailure,
+        0x60>
+    //  0x61 Reserved
+    //  0x62 Reserved
+    //  0x63 Reserved
+    //  0x64 Reserved
+    //  0x65 Reserved
+    //  0x66 Reserved
+    //  0x67 Reserved
 >;
-
 
 using MMUProgrammingRequestFrame
 = Frame<
     0x03, // FrameID = 3
     3,
     SSR_CommandFrameType
+>;
+
+using MMUProgrammingRequestAckFrame
+= Frame<
+    0x83, // FrameID = 131
+    3,
+    SSG_ResponseFrameType
 >;
 
 using DateTimeBroadcastFrame
