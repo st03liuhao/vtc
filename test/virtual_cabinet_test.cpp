@@ -25,48 +25,53 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 using namespace atc;
 
-TEST_CASE("io::output::NotActive can be set") {
+TEST_CASE("io::output::NotActive can be set")
+{
   using namespace io;
 
-  io::variable<output::NotActive>.value = Bit::off;
-  CHECK(io::variable<output::NotActive>.value == Bit::off);
+  io::variable<output::NotActive>.value = Bit::Off;
+  CHECK(io::variable<output::NotActive>.value == Bit::Off);
 
-  io::variable<output::NotActive>.value = Bit::on;
-  CHECK(io::variable<output::NotActive>.value == Bit::on);
+  io::variable<output::NotActive>.value = Bit::On;
+  CHECK(io::variable<output::NotActive>.value == Bit::On);
 
   CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
   CHECK(std::is_same_v<output::NotActive::value_t, Bit>);
   CHECK(std::is_same_v<output::NotActive::type, IOVariableType>);
 }
 
-TEST_CASE("io::output::ChannelGreenWalkDriver can be set") {
+TEST_CASE("io::output::ChannelGreenWalkDriver can be set")
+{
   using namespace io;
 
-  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::off;
-  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::off);
+  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::Off;
+  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::Off);
 
-  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::on;
-  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::on);
+  io::variable<output::ChannelGreenWalkDriver<1>>.value = Bit::On;
+  CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::On);
 }
 
-TEST_CASE("mmu::LoadSwitchFlash can be set") {
+TEST_CASE("mmu::LoadSwitchFlash can be set")
+{
   using namespace mmu;
 
-  mmu::variable<LoadSwitchFlash>.value = Bit::off;
-  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::off);
+  mmu::variable<LoadSwitchFlash>.value = Bit::Off;
+  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::Off);
 
-  mmu::variable<LoadSwitchFlash>.value = Bit::on;
-  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::on);
+  mmu::variable<LoadSwitchFlash>.value = Bit::On;
+  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::On);
 }
 
-TEST_CASE("FrameBit can be instantiated") {
+TEST_CASE("FrameBit can be instantiated")
+{
   using namespace mmu;
 
   FrameBit<LoadSwitchFlash, 127> l_framebit;
   CHECK(l_framebit.pos == 127);
 }
 
-TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
+TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
+{
   using namespace mmu;
 
   LoadSwitchDriversFrame l_frame;
@@ -74,35 +79,38 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed") {
       l_data = {0x10, 0x83, 0x00, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
   l_frame << l_data;
 
-  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::on);
+  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::On);
 
-  CHECK(mmu::variable<ChannelGreenWalkDriver<1>>.value == Bit::on);
-  CHECK(mmu::variable<ChannelGreenWalkDriver<2>>.value == Bit::off);
-  CHECK(mmu::variable<ChannelGreenWalkDriver<3>>.value == Bit::off);
-  CHECK(mmu::variable<ChannelGreenWalkDriver<4>>.value == Bit::on);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<1>>.value == Bit::On);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<2>>.value == Bit::Off);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<3>>.value == Bit::Off);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<4>>.value == Bit::On);
 }
 
-TEST_CASE("mmu::InputStatusRequestFrame can be parsed") {
+TEST_CASE("mmu::InputStatusRequestFrame can be parsed")
+{
   using namespace mmu;
 
   MMUInputStatusRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
   l_frame << l_data;
 
-  CHECK(l_frame.frame_id == 0x01);
+  CHECK(l_frame.id == 0x01);
 }
 
-TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed") {
+TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
+{
   using namespace mmu;
 
   MMUProgrammingRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x03};
   l_frame << l_data;
 
-  CHECK(l_frame.frame_id == 0x03);
+  CHECK(l_frame.id == 0x03);
 }
 
-TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0") {
+TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
+{
   using namespace atc::mmu;
 
   DateTimeBroadcastFrame l_frame;
@@ -110,7 +118,7 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0") {
   l_data = {0xFF, 0x83, 0x09, 0x03, 0x12, 0x16, 0x11, 0x20, 0x00, 0x00, 0x01, 0x02}; // 03/18/2022, 17:32:00.0
   l_frame << l_data;
 
-  CHECK(l_frame.frame_id == 0x09);
+  CHECK(l_frame.id == 0x09);
   CHECK(mmu::variable<CUReportedDay>.value == 18);
   CHECK(mmu::variable<CUReportedMonth>.value == 3);
   CHECK(mmu::variable<CUReportedYear>.value == 22);
@@ -118,11 +126,12 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0") {
   CHECK(mmu::variable<CUReportedMinutes>.value == 32);
   CHECK(mmu::variable<CUReportedSeconds>.value == 0);
   CHECK(mmu::variable<CUReportedTenthsOfSeconds>.value == 0);
-  CHECK(mmu::variable<TFBIUPresent<1>>.value == Bit::on);
-  CHECK(mmu::variable<DETBIUPresent<2>>.value == Bit::on);
+  CHECK(mmu::variable<TFBIUPresent<1>>.value == Bit::On);
+  CHECK(mmu::variable<DETBIUPresent<2>>.value == Bit::On);
 }
 
-TEST_CASE("Two channel IDs can be encoded") {
+TEST_CASE("Two channel IDs can be encoded")
+{
   using namespace atc::mmu;
 
   Byte a = 1;

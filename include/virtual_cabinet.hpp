@@ -23,7 +23,6 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #define _VIRTUAL_CABINET
 
 #include <atomic>
-#include <cassert>
 #include <span>
 
 namespace atc {
@@ -31,8 +30,10 @@ namespace atc {
 // A dirty trick to generate template specialization tag.
 #define AUTO_TAG_ID __LINE__
 
-enum class Bit : bool {
-  off = false, on = true
+enum class Bit : bool
+{
+  Off = false,
+  On = true
 };
 
 using Byte = uint8_t;
@@ -43,7 +44,8 @@ using index_t = uint16_t;
 using size_t = uint16_t;
 using tag_t = int;
 
-constexpr bool IsValidIndex(index_t I, size_t N) {
+constexpr bool IsValidIndex(index_t I, size_t N)
+{
   return (I >= 1) && (I <= N);
 };
 
@@ -51,8 +53,10 @@ template<typename T>
 concept is_valid_variable_value_t
 = std::is_same_v<T, Bit> || std::is_same_v<T, Byte> || std::is_same_v<T, Word> || std::is_same_v<T, Integer>;
 
-template<typename ValueT, index_t I> requires is_valid_variable_value_t<ValueT>
-struct Variable {
+template<typename ValueT, index_t I> /* */
+requires is_valid_variable_value_t<ValueT>
+struct Variable
+{
   using value_t = ValueT;
 
   Variable() = default;
@@ -75,64 +79,77 @@ concept is_variable = requires {
 
 namespace cu {
 
-struct ControllerUnitVariableType {
+struct ControllerUnitVariableType
+{
 };
 
 template<typename T>
-concept is_cu_variable = std::is_same_v<typename T::type, ControllerUnitVariableType>;
+concept is_cu_variable
+= std::is_same_v<typename T::type, ControllerUnitVariableType>;
 
-struct Phase {
+struct Phase
+{
   static constexpr size_t max_Phases{40};
   static constexpr size_t max_Phase_groups{5};
 };
 
-struct Detector {
+struct Detector
+{
   static constexpr size_t max_vehicle_detectors{128};
   static constexpr size_t max_vehicle_detector_status_groups{40};
   static constexpr size_t max_pedestrian_detectors{72};
 };
 
-struct Ring {
+struct Ring
+{
   static constexpr size_t max_rings{16};
   static constexpr size_t max_sequences{20};
   static constexpr size_t max_ring_control_groups{2};
 };
 
-struct Channel {
+struct Channel
+{
   static constexpr size_t max_Channels{32};
   static constexpr size_t max_Channel_status_groups{4};
 };
 
-struct Overlap {
+struct Overlap
+{
   static constexpr size_t max_Overlaps{32};
   static constexpr size_t max_Overlap_status_groups{4};
 };
 
-struct Preempt {
+struct Preempt
+{
   static constexpr size_t max_preempts{40};
 };
 
-struct Unit {
+struct Unit
+{
   static constexpr size_t max_alarm_groups{1};
   static constexpr size_t max_special_function_outputs{16};
 };
 
-struct Coord {
+struct Coord
+{
   static constexpr size_t max_patterns{128};
   static constexpr size_t max_splits{128};
 };
 
-struct TimebaseAsc {
+struct TimebaseAsc
+{
   static constexpr size_t max_timebase_asc_actions{64};
 };
 
-struct Prioritor {
+struct Prioritor
+{
   static constexpr size_t max_prioritors{16};
   static constexpr size_t max_prioritor_groups{9};
 };
 
 template<tag_t, typename ValueT, index_t I = 0>
-struct ControllerUnitVariable : Variable<ValueT, I> {
+struct ControllerUnitVariable : Variable<ValueT, I>
+{
   using type = ControllerUnitVariableType;
 
   ControllerUnitVariable() = default;
@@ -143,20 +160,25 @@ struct ControllerUnitVariable : Variable<ValueT, I> {
   ControllerUnitVariable &operator=(ControllerUnitVariable &&) = delete;
 };
 
-template<typename T> requires is_cu_variable<T>
+template<typename T>/* */
+requires is_cu_variable<T>
 T variable{};
+
 } // end of namespace atc::cu
 
 namespace io {
 
-struct IOVariableType {
+struct IOVariableType
+{
 };
 
 template<typename T>
-concept is_io_variable = std::is_same_v<typename T::type, IOVariableType>;
+concept is_io_variable
+= std::is_same_v<typename T::type, IOVariableType>;
 
 template<tag_t, typename ValueT, index_t I = 0>
-struct IOVariable : Variable<ValueT, I> {
+struct IOVariable : Variable<ValueT, I>
+{
   using type = IOVariableType;
 
   IOVariable() = default;
@@ -166,7 +188,8 @@ struct IOVariable : Variable<ValueT, I> {
   IOVariable &operator=(IOVariable &&) = delete;
 };
 
-template<typename T> requires is_io_variable<T>
+template<typename T>/* */
+requires is_io_variable<T>
 T variable{};
 
 namespace output {
@@ -177,22 +200,26 @@ using AltFlashState
 using AuxFunctionState
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelGreenWalkDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelRedDoNotWalkDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelYellowPedClearDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 using CustomAlarm
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (I >= 1)
+template<index_t I>/* */
+requires (I >= 1)
 using DetectorReset
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -205,83 +232,103 @@ using GlobalVariable
 using NotActive
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
 using OverlapGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
 using OverlapProtectedGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
 using OverlapRed
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
 using OverlapYellow
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PedCall
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseAdvWarning
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseCheck
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseDoNotWalk
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseNext
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseOn
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhasePedClearance
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhasePreClear
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhasePreClear2
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseRed
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseWalk
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseYellow
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptStatus
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptStatusFlash
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -297,7 +344,8 @@ using RingStatusBitC
 using RingStatusBitD
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Unit::max_special_function_outputs))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Unit::max_special_function_outputs))
 using SpecialFunction
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -350,7 +398,8 @@ using Watchdog
 
 namespace input {
 
-template<index_t I> requires (IsValidIndex(I, cu::Detector::max_vehicle_detectors))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Detector::max_vehicle_detectors))
 using ChannelFaultStatus
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -372,107 +421,133 @@ using MinGreen_2
 using NotActive
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
 using OverlapOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Coord::max_patterns))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Coord::max_patterns))
 using PatternInput
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Detector::max_pedestrian_detectors))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Detector::max_pedestrian_detectors))
 using PedDetCall
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseForceOff
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhaseHold
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhasePedOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Phase::max_Phases))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Phase::max_Phases))
 using PhasePhaseOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptGateDown
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptGateUp
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptHighPrioritorLow
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptInput
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptInputCRC
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptInputNormalOff
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Preempt::max_preempts))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Preempt::max_preempts))
 using PreemptInputNormalOn
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Prioritor::max_prioritors))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Prioritor::max_prioritors))
 using PrioritorCheckIn
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Prioritor::max_prioritors))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Prioritor::max_prioritors))
 using PrioritorCheckOut
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (I >= 1)
+template<index_t I>/* */
+requires (I >= 1)
 using PrioritorPreemptDetector
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingForceOff
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingInhibitMaxTermination
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingMax2Selection
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingMax3Selection
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingOmitRedClearance
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingPedestrianRecycle
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingRedRest
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using RingStopTiming
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Ring::max_rings))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Ring::max_rings))
 using SpecialFunctionInput
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -617,11 +692,13 @@ using UnitTimingPlanD
 using UnitWalkRestModifier
 = IOVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Detector::max_vehicle_detectors))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Detector::max_vehicle_detectors))
 using VehicleDetCall
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (I >= 1)
+template<index_t I>/* */
+requires (I >= 1)
 using VehicleDetReset
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -631,14 +708,17 @@ using VehicleDetReset
 
 namespace mmu {
 
-struct MMUVariableType {
+struct MMUVariableType
+{
 };
 
 template<typename T>
-concept is_mmu_variable = std::is_same_v<typename T::type, MMUVariableType>;
+concept is_mmu_variable
+= std::is_same_v<typename T::type, MMUVariableType>;
 
 template<tag_t, typename ValueT, index_t I = 0>
-struct MMUVariable : Variable<ValueT, I> {
+struct MMUVariable : Variable<ValueT, I>
+{
   using type = MMUVariableType;
 
   MMUVariable() = default;
@@ -649,15 +729,18 @@ struct MMUVariable : Variable<ValueT, I> {
 };
 
 //-----------------------------------------------------------------------
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelGreenWalkStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelRedDoNotWalkStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelYellowPedClearStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -709,7 +792,8 @@ using StartupFlashCall
 using FYAFlashRateFailure
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using MinimumYellowChangeDisable
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -734,20 +818,24 @@ using CVMFaultMonitorLatch
 /*  The two channel IDs are encoded as the index.
     index = left-hand-side channel as high-byte, right-hand-size channel as low-byte
  */
-template<Byte Ix, Byte Iy> requires (IsValidIndex(Ix, cu::Channel::max_Channels) && IsValidIndex(Iy, cu::Channel::max_Channels))
+template<Byte Ix, Byte Iy>/* */
+requires (IsValidIndex(Ix, cu::Channel::max_Channels) && IsValidIndex(Iy, cu::Channel::max_Channels))
 using ChannelCompatibilityStatus
 = MMUVariable<AUTO_TAG_ID, Bit, (Ix << 8) | Iy>;
 
 //-----------------------------------------------------------------------
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu/* */::Channel::max_Channels))
 using ChannelGreenWalkDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelRedDoNotWalkDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, cu::Channel::max_Channels))
+template<index_t I>/* */
+requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelYellowPedClearDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -775,52 +863,70 @@ using CUReportedSeconds
 using CUReportedTenthsOfSeconds
 = MMUVariable<AUTO_TAG_ID, Byte>;
 
-template<index_t I> requires (IsValidIndex(I, 8))
+template<index_t I>/* */
+requires (IsValidIndex(I, 8))
 using TFBIUPresent
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
-template<index_t I> requires (IsValidIndex(I, 8))
+template<index_t I>/* */
+requires (IsValidIndex(I, 8))
 using DETBIUPresent
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 //-----------------------------------------------------------------------
-template<typename T> requires is_mmu_variable<T>
+template<typename T>/* */
+requires is_mmu_variable<T>
 T variable{};
 
 } // end of namespace atc::mmu
 
 template<typename T>
 requires cu::is_cu_variable<T>
-constexpr T &variable() { return cu::variable<T>; }
+constexpr T &variable()
+{
+  return cu::variable<T>;
+}
 
 template<typename T>
 requires mmu::is_mmu_variable<T>
-constexpr T &variable() { return mmu::variable<T>; }
+constexpr T &variable()
+{
+  return mmu::variable<T>;
+}
 
 template<typename T>
 requires io::is_io_variable<T>
-constexpr T &variable() { return io::variable<T>; }
+constexpr T &variable()
+{
+  return io::variable<T>;
+}
 
-struct FrameElementType {
+struct FrameElementType
+{
 };
 
 template<typename T>
-concept is_valid_frame_elem = std::is_same_v<FrameElementType, typename T::type>;
+concept is_valid_frame_elem
+= std::is_same_v<FrameElementType, typename T::type>;
 
-template<typename T, size_t BitPos> requires std::is_same_v<ValueType<T>, Bit>
-struct FrameBit {
+template<typename T, size_t BitPos>/* */
+requires std::is_same_v<ValueType<T>, Bit>
+struct FrameBit
+{
   using type = FrameElementType;
 
-  void operator<<(const std::span<const Byte> a_data_in) {
+  void operator<<(const std::span<const Byte> a_data_in)
+  {
     static auto l_bytepos = pos / 8;
     static auto l_nbits_to_shift = pos % 8;
     auto l_value = (a_data_in[l_bytepos] & (0x01 << l_nbits_to_shift)) != 0;
     ref_var.value = static_cast<Bit>(l_value);
   }
 
-  void operator>>(const std::span<Byte> a_data_out) {
+  void operator>>(const std::span<Byte> a_data_out)
+  {
     static auto l_byte_pos = pos / 8;
     static auto l_num_of_bits_to_shift = pos % 8;
-    Byte i = (ref_var.value = Bit::on) ? 1 : 0;
+    Byte i = (ref_var.value = Bit::On) ? 1 : 0;
     a_data_out[l_byte_pos] = a_data_out[l_byte_pos] | (i << l_num_of_bits_to_shift);
   }
 
@@ -828,15 +934,19 @@ struct FrameBit {
   T &ref_var{variable<T>()};
 };
 
-template<typename T, size_t BytePos> requires std::is_same_v<ValueType<T>, Byte>
-struct FrameByte {
+template<typename T, size_t BytePos>/* */
+requires std::is_same_v<ValueType<T>, Byte>
+struct FrameByte
+{
   using type = FrameElementType;
 
-  void operator<<(const std::span<const Byte> a_data_in) {
+  void operator<<(const std::span<const Byte> a_data_in)
+  {
     ref_var.value = a_data_in[pos];
   }
 
-  void operator>>(const std::span<Byte> a_data_out) {
+  void operator>>(const std::span<Byte> a_data_out)
+  {
     a_data_out[pos] = ref_var.value;
   }
 
@@ -844,15 +954,19 @@ struct FrameByte {
   T &ref_var{variable<T>()};
 };
 
-template<typename T, size_t BytePos> requires std::is_same_v<ValueType<T>, Word>
-struct FrameWord {
+template<typename T, size_t BytePos>/* */
+requires std::is_same_v<ValueType<T>, Word>
+struct FrameWord
+{
   using type = FrameElementType;
 
-  void operator<<(const std::span<const Byte> a_data_in) {
+  void operator<<(const std::span<const Byte> a_data_in)
+  {
     ref_var.value = (a_data_in[pos] & 0x00FF) | (a_data_in[pos + 1] << 8); // LByte | HByte
   }
 
-  void operator>>(const std::span<Byte> a_data_out) {
+  void operator>>(const std::span<Byte> a_data_out)
+  {
     a_data_out[pos] = ref_var.value & 0x00FF; // LByte
     a_data_out[pos + 1] = ref_var.value >> 8; // HByte
   }
@@ -862,19 +976,23 @@ struct FrameWord {
 };
 
 // Primary Station Generated Command Frame
-struct PSG_CommandFrameType {
+struct PSG_CommandFrameType
+{
 };
 
 // Primary Station Received Response Frame
-struct PSR_ResponseFrameType {
+struct PSR_ResponseFrameType
+{
 };
 
 // Secondary Station Received Command Frame
-struct SSR_CommandFrameType {
+struct SSR_CommandFrameType
+{
 };
 
 // Secondary Station Generated Response Frame
-struct SSG_ResponseFrameType {
+struct SSG_ResponseFrameType
+{
 };
 
 template<typename T>
@@ -901,8 +1019,10 @@ template<typename T>
 concept is_receivable_frame
 = std::is_same_v<T, PSR_ResponseFrameType> || std::is_same_v<T, SSR_CommandFrameType>;
 
-template<Byte FrameID, size_t FrameByteSize, typename T, typename ...Ts> requires is_valid_frame_and_elem<T, Ts...>
-class Frame {
+template<Byte Address, Byte FrameID, size_t FrameByteSize, typename T, typename ...Ts>/* */
+requires is_valid_frame_and_elem<T, Ts...>
+class Frame
+{
 public:
   using type = T;
 
@@ -913,35 +1033,46 @@ public:
   Frame &operator=(Frame &&) = delete;
 
   template<typename = T>
+  /* */
   requires is_receivable_frame<T>
-  void operator<<(const std::span<const Byte, FrameByteSize> a_data_in) {
-    // [0]: address; [1]: SDLC control code, always 0x83; [2]: frame type id.
-    // Last two byte of the SDLC payload is CRC; stripped already, not in the data passed in.
-    assert(a_data_in[2] == FrameID);
+  void operator<<(const std::span<const Byte, FrameByteSize> a_data_in)
+  {
+    // [0]: Address; [1]: SDLC control code 0x83; [2]: FrameID.
+    // Last 16 bits CRC of the SDLC payload stripped away, not part of a_data_in.
+    // assert(a_data_in[0] == address;
+    // assert(a_data_in[1] == 0x83;
+    // assert(a_data_in[2] == id);
     assign(a_data_in);
   }
 
   template<typename = T>
+  /* */
   requires is_generative_frame<T>
-  void operator>>(std::span<const Byte, FrameByteSize> a_data_out) {
+  void operator>>(std::span<const Byte, FrameByteSize> a_data_out)
+  {
     std::fill(a_data_out, a_data_out + FrameByteSize, 0);
-    a_data_out[0] = FrameID;
+    a_data_out[0] = address;
+    a_data_out[1] = 0x83;
+    a_data_out[2] = id;
     generate(a_data_out);
   }
 
-  static constexpr size_t frame_id{FrameID};
-  static constexpr size_t frame_byte_size{FrameByteSize};
+  static constexpr size_t address{Address};
+  static constexpr size_t id{FrameID};
+  static constexpr size_t bytesize{FrameByteSize};
 private:
   template<size_t I = 0>
-  inline void assign(const std::span<const Byte, FrameByteSize> a_data_in) {
+  inline void assign(const std::span<const Byte, FrameByteSize> a_data_in)
+  {
     if constexpr (I < sizeof...(Ts)) {
       std::get<I>(m_frame_elements) << a_data_in;
-      assign<I + 1>(a_data_in);
+      assign < I + 1 > (a_data_in);
     }
   }
 
   template<size_t I = 0>
-  inline void generate(const std::span<Byte, FrameByteSize> a_data_out) {
+  inline void generate(const std::span<Byte, FrameByteSize> a_data_out)
+  {
     if constexpr (I < sizeof...(Ts)) {
       std::get<I>(m_frame_elements) >> a_data_out;
       generate < I + 1 > (a_data_out);
@@ -971,6 +1102,7 @@ namespace mmu {
  */
 using LoadSwitchDriversFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x00, // FrameID = 0
     16,   // Total Byte Size of the frame.
     SSR_CommandFrameType,
@@ -1100,6 +1232,7 @@ using LoadSwitchDriversFrame
 
 using LoadSwitchDriversAckFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x80, // FrameID = 128, Type 0 ACK
     3,
     SSG_ResponseFrameType
@@ -1107,6 +1240,7 @@ using LoadSwitchDriversAckFrame
 
 using MMUInputStatusRequestFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x01, // FrameID = 1
     3,
     SSR_CommandFrameType
@@ -1114,6 +1248,7 @@ using MMUInputStatusRequestFrame
 
 using MMUInputStatusRequestAckFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x81, // FrameID = 129
     13,
     SSG_ResponseFrameType,
@@ -1267,6 +1402,7 @@ using MMUInputStatusRequestAckFrame
 
 using MMUProgrammingRequestFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x03, // FrameID = 3
     3,
     SSR_CommandFrameType
@@ -1274,6 +1410,7 @@ using MMUProgrammingRequestFrame
 
 using MMUProgrammingRequestAckFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x83, // FrameID = 131
     23,
     SSG_ResponseFrameType,
@@ -1494,6 +1631,7 @@ using MMUProgrammingRequestAckFrame
 
 using DateTimeBroadcastFrame
 = Frame<
+    0x10, // MMU Address = 16
     0x09, // FrameID
     12,   // 12 Bytes
     SSR_CommandFrameType,
