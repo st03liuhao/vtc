@@ -66,7 +66,7 @@ TEST_CASE("FrameBit can be instantiated")
 {
   using namespace mmu;
 
-  FrameBit<LoadSwitchFlash, 127> l_framebit;
+  serialframe::FrameBit<LoadSwitchFlash, 127> l_framebit;
   CHECK(l_framebit.pos == 127);
 }
 
@@ -74,7 +74,7 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
 {
   using namespace mmu;
 
-  LoadSwitchDriversFrame l_frame;
+  serialframe::LoadSwitchDriversFrame l_frame;
   std::array<Byte, 16>
       l_data = {0x10, 0x83, 0x00, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
   l_frame << l_data;
@@ -91,7 +91,7 @@ TEST_CASE("mmu::InputStatusRequestFrame can be parsed")
 {
   using namespace mmu;
 
-  MMUInputStatusRequestFrame l_frame;
+  serialframe::MMUInputStatusRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
   l_frame << l_data;
 
@@ -102,7 +102,7 @@ TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
 {
   using namespace mmu;
 
-  MMUProgrammingRequestFrame l_frame;
+  serialframe::MMUProgrammingRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x03};
   l_frame << l_data;
 
@@ -111,23 +111,23 @@ TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
 
 TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
 {
-  using namespace atc::mmu;
+  using namespace atc::broadcast;
 
-  DateTimeBroadcastFrame l_frame;
+  serialframe::DateTimeBroadcastFrame l_frame;
   std::array<Byte, 12>     // M     D     Y     H     M     S     0.1   TF    DET
   l_data = {0xFF, 0x83, 0x09, 0x03, 0x12, 0x16, 0x11, 0x20, 0x00, 0x00, 0x01, 0x02}; // 03/18/2022, 17:32:00.0
   l_frame << l_data;
 
   CHECK(l_frame.id == 0x09);
-  CHECK(mmu::variable<CUReportedDay>.value == 18);
-  CHECK(mmu::variable<CUReportedMonth>.value == 3);
-  CHECK(mmu::variable<CUReportedYear>.value == 22);
-  CHECK(mmu::variable<CUReportedHour>.value == 17);
-  CHECK(mmu::variable<CUReportedMinutes>.value == 32);
-  CHECK(mmu::variable<CUReportedSeconds>.value == 0);
-  CHECK(mmu::variable<CUReportedTenthsOfSeconds>.value == 0);
-  CHECK(mmu::variable<TFBIUPresent<1>>.value == Bit::On);
-  CHECK(mmu::variable<DETBIUPresent<2>>.value == Bit::On);
+  CHECK(broadcast::variable<CUReportedDay>.value == 18);
+  CHECK(broadcast::variable<CUReportedMonth>.value == 3);
+  CHECK(broadcast::variable<CUReportedYear>.value == 22);
+  CHECK(broadcast::variable<CUReportedHour>.value == 17);
+  CHECK(broadcast::variable<CUReportedMinutes>.value == 32);
+  CHECK(broadcast::variable<CUReportedSeconds>.value == 0);
+  CHECK(broadcast::variable<CUReportedTenthsOfSeconds>.value == 0);
+  CHECK(broadcast::variable<CUReportedTFBIUPresence<1>>.value == Bit::On);
+  CHECK(broadcast::variable<CUReportedDETBIUPresence<2>>.value == Bit::On);
 }
 
 TEST_CASE("Two channel IDs can be encoded")

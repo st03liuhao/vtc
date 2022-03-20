@@ -72,10 +72,64 @@ struct Variable
 template<typename T>
 using ValueType = typename T::Variable::value_t;
 
-template<typename T>
-concept is_variable = requires {
-  T::Variable::value_t;
+namespace broadcast {
+
+struct BroadcastVariableType
+{
 };
+
+template<typename T>
+concept is_broadcast_variable
+= std::is_same_v<typename T::type, BroadcastVariableType>;
+
+template<tag_t, typename ValueT, index_t I = 0>
+struct BroadcastVariable : Variable<ValueT, I>
+{
+  using type = BroadcastVariableType;
+
+  BroadcastVariable() = default;
+  BroadcastVariable(BroadcastVariable &) = delete;
+  BroadcastVariable(BroadcastVariable &&) = delete;
+  BroadcastVariable &operator=(BroadcastVariable &) = delete;
+  BroadcastVariable &operator=(BroadcastVariable &&) = delete;
+};
+
+using CUReportedMonth
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedDay
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedYear
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedHour
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedMinutes
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedSeconds
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+using CUReportedTenthsOfSeconds
+= BroadcastVariable<AUTO_TAG_ID, Byte>;
+
+template<index_t I>/* */
+requires (IsValidIndex(I, 8))
+using CUReportedTFBIUPresence
+= BroadcastVariable<AUTO_TAG_ID, Bit, I>;
+
+template<index_t I>/* */
+requires (IsValidIndex(I, 8))
+using CUReportedDETBIUPresence
+= BroadcastVariable<AUTO_TAG_ID, Bit, I>;
+
+template<typename T>/* */
+requires is_broadcast_variable<T>
+T variable{};
+
+} // end of namespace broadcast
 
 namespace cu {
 
@@ -728,7 +782,6 @@ struct MMUVariable : Variable<ValueT, I>
   MMUVariable &operator=(MMUVariable &&) = delete;
 };
 
-//-----------------------------------------------------------------------
 template<index_t I>/* */
 requires (IsValidIndex(I, cu::Channel::max_Channels))
 using ChannelGreenWalkStatus
@@ -823,7 +876,6 @@ requires (IsValidIndex(Ix, cu::Channel::max_Channels) && IsValidIndex(Iy, cu::Ch
 using ChannelCompatibilityStatus
 = MMUVariable<AUTO_TAG_ID, Bit, (Ix << 8) | Iy>;
 
-//-----------------------------------------------------------------------
 template<index_t I>/* */
 requires (IsValidIndex(I, cu/* */::Channel::max_Channels))
 using ChannelGreenWalkDriver
@@ -842,42 +894,19 @@ using ChannelYellowPedClearDriver
 using LoadSwitchFlash
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
-using CUReportedMonth
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedDay
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedYear
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedHour
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedMinutes
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedSeconds
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-using CUReportedTenthsOfSeconds
-= MMUVariable<AUTO_TAG_ID, Byte>;
-
-template<index_t I>/* */
-requires (IsValidIndex(I, 8))
-using TFBIUPresent
-= MMUVariable<AUTO_TAG_ID, Bit, I>;
-
-template<index_t I>/* */
-requires (IsValidIndex(I, 8))
-using DETBIUPresent
-= MMUVariable<AUTO_TAG_ID, Bit, I>;
-//-----------------------------------------------------------------------
 template<typename T>/* */
 requires is_mmu_variable<T>
 T variable{};
 
 } // end of namespace atc::mmu
+
+//-----------------------------------------------------
+template<typename T>
+requires broadcast::is_broadcast_variable<T>
+constexpr T &variable()
+{
+  return broadcast::variable<T>;
+}
 
 template<typename T>
 requires cu::is_cu_variable<T>
@@ -899,6 +928,9 @@ constexpr T &variable()
 {
   return io::variable<T>;
 }
+//---------------------------------------------------------
+
+namespace serialframe {
 
 struct FrameElementType
 {
@@ -1019,6 +1051,13 @@ template<typename T>
 concept is_receivable_frame
 = std::is_same_v<T, PSR_ResponseFrameType> || std::is_same_v<T, SSR_CommandFrameType>;
 
+/* SDLC encoding using non-return-to-zero NRZ encoding, high = 1, low = 0.
+ * Reserved bits will be set to low. Spare bits are vendor specific, but since
+ * we don't deal with vendor specific features, spare bits will also be set to 0.
+ * */
+constexpr int max_sdlc_frame_bytesize = 64; // max byte size = 64 byte
+constexpr int sdlc_clock_speed = 153600;    // clock frequency
+
 template<Byte Address, Byte FrameID, size_t FrameByteSize, typename T, typename ...Ts>/* */
 requires is_valid_frame_and_elem<T, Ts...>
 class Frame
@@ -1033,12 +1072,11 @@ public:
   Frame &operator=(Frame &&) = delete;
 
   template<typename = T>
-  /* */
   requires is_receivable_frame<T>
   void operator<<(const std::span<const Byte, FrameByteSize> a_data_in)
   {
     // [0]: Address; [1]: SDLC control code 0x83; [2]: FrameID.
-    // Last 16 bits CRC of the SDLC payload stripped away, not part of a_data_in.
+    // Last 16 bits CCITT-CRC of the SDLC payload stripped away, not part of a_data_in.
     // assert(a_data_in[0] == address;
     // assert(a_data_in[1] == 0x83;
     // assert(a_data_in[2] == id);
@@ -1046,7 +1084,6 @@ public:
   }
 
   template<typename = T>
-  /* */
   requires is_generative_frame<T>
   void operator>>(std::span<const Byte, FrameByteSize> a_data_out)
   {
@@ -1066,7 +1103,7 @@ private:
   {
     if constexpr (I < sizeof...(Ts)) {
       std::get<I>(m_frame_elements) << a_data_in;
-      assign < I + 1 > (a_data_in);
+      assign<I + 1>(a_data_in);
     }
   }
 
@@ -1081,8 +1118,6 @@ private:
 
   std::tuple<Ts...> m_frame_elements;
 };
-
-namespace mmu {
 
 /* MMU LoadSwitchDriverFrame (TYPE 0 Command Frame)
    For each channel, there are two bits for dimming purpose
@@ -1113,121 +1148,121 @@ using LoadSwitchDriversFrame
     // ----------------------------------------------
     // Byte 3 - Channel Green Driver
     //-----------------------------------------------
-    FrameBit<ChannelGreenWalkDriver<0x01>, 0x18>,
-    FrameBit<ChannelGreenWalkDriver<0x01>, 0x19>,
-    FrameBit<ChannelGreenWalkDriver<0x02>, 0x1A>,
-    FrameBit<ChannelGreenWalkDriver<0x02>, 0x1B>,
-    FrameBit<ChannelGreenWalkDriver<0x03>, 0x1C>,
-    FrameBit<ChannelGreenWalkDriver<0x03>, 0x1D>,
-    FrameBit<ChannelGreenWalkDriver<0x04>, 0x1E>,
-    FrameBit<ChannelGreenWalkDriver<0x04>, 0x1F>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x01>, 0x18>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x01>, 0x19>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x02>, 0x1A>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x02>, 0x1B>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x03>, 0x1C>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x03>, 0x1D>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x04>, 0x1E>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x04>, 0x1F>,
     // Byte 4
-    FrameBit<ChannelGreenWalkDriver<0x05>, 0x20>,
-    FrameBit<ChannelGreenWalkDriver<0x05>, 0x21>,
-    FrameBit<ChannelGreenWalkDriver<0x06>, 0x22>,
-    FrameBit<ChannelGreenWalkDriver<0x06>, 0x23>,
-    FrameBit<ChannelGreenWalkDriver<0x07>, 0x24>,
-    FrameBit<ChannelGreenWalkDriver<0x07>, 0x25>,
-    FrameBit<ChannelGreenWalkDriver<0x08>, 0x26>,
-    FrameBit<ChannelGreenWalkDriver<0x08>, 0x27>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x05>, 0x20>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x05>, 0x21>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x06>, 0x22>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x06>, 0x23>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x07>, 0x24>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x07>, 0x25>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x08>, 0x26>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x08>, 0x27>,
     // Byte 5
-    FrameBit<ChannelGreenWalkDriver<0x09>, 0x28>,
-    FrameBit<ChannelGreenWalkDriver<0x09>, 0x29>,
-    FrameBit<ChannelGreenWalkDriver<0x0A>, 0x2A>,
-    FrameBit<ChannelGreenWalkDriver<0x0A>, 0x2B>,
-    FrameBit<ChannelGreenWalkDriver<0x0B>, 0x2C>,
-    FrameBit<ChannelGreenWalkDriver<0x0B>, 0x2D>,
-    FrameBit<ChannelGreenWalkDriver<0x0C>, 0x2E>,
-    FrameBit<ChannelGreenWalkDriver<0x0C>, 0x2F>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x09>, 0x28>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x09>, 0x29>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0A>, 0x2A>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0A>, 0x2B>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0B>, 0x2C>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0B>, 0x2D>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0C>, 0x2E>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0C>, 0x2F>,
     // Byte 6
-    FrameBit<ChannelGreenWalkDriver<0x0D>, 0x30>,
-    FrameBit<ChannelGreenWalkDriver<0x0D>, 0x31>,
-    FrameBit<ChannelGreenWalkDriver<0x0E>, 0x32>,
-    FrameBit<ChannelGreenWalkDriver<0x0E>, 0x33>,
-    FrameBit<ChannelGreenWalkDriver<0x0F>, 0x34>,
-    FrameBit<ChannelGreenWalkDriver<0x0F>, 0x35>,
-    FrameBit<ChannelGreenWalkDriver<0x10>, 0x36>,
-    FrameBit<ChannelGreenWalkDriver<0x10>, 0x37>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0D>, 0x30>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0D>, 0x31>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0E>, 0x32>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0E>, 0x33>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0F>, 0x34>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x0F>, 0x35>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x10>, 0x36>,
+    FrameBit<mmu::ChannelGreenWalkDriver<0x10>, 0x37>,
     // ----------------------------------------------
     // Byte 7 - Channel Yellow Driver
     // ----------------------------------------------
-    FrameBit<ChannelYellowPedClearDriver<0x01>, 0x38>,
-    FrameBit<ChannelYellowPedClearDriver<0x01>, 0x39>,
-    FrameBit<ChannelYellowPedClearDriver<0x02>, 0x3A>,
-    FrameBit<ChannelYellowPedClearDriver<0x02>, 0x3B>,
-    FrameBit<ChannelYellowPedClearDriver<0x03>, 0x3C>,
-    FrameBit<ChannelYellowPedClearDriver<0x03>, 0x3D>,
-    FrameBit<ChannelYellowPedClearDriver<0x04>, 0x3E>,
-    FrameBit<ChannelYellowPedClearDriver<0x04>, 0x3F>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x01>, 0x38>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x01>, 0x39>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x02>, 0x3A>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x02>, 0x3B>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x03>, 0x3C>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x03>, 0x3D>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x04>, 0x3E>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x04>, 0x3F>,
     // Byte 8
-    FrameBit<ChannelYellowPedClearDriver<0x05>, 0x40>,
-    FrameBit<ChannelYellowPedClearDriver<0x05>, 0x41>,
-    FrameBit<ChannelYellowPedClearDriver<0x06>, 0x42>,
-    FrameBit<ChannelYellowPedClearDriver<0x06>, 0x43>,
-    FrameBit<ChannelYellowPedClearDriver<0x07>, 0x44>,
-    FrameBit<ChannelYellowPedClearDriver<0x07>, 0x45>,
-    FrameBit<ChannelYellowPedClearDriver<0x08>, 0x46>,
-    FrameBit<ChannelYellowPedClearDriver<0x08>, 0x47>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x05>, 0x40>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x05>, 0x41>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x06>, 0x42>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x06>, 0x43>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x07>, 0x44>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x07>, 0x45>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x08>, 0x46>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x08>, 0x47>,
     // Byte 9
-    FrameBit<ChannelYellowPedClearDriver<0x09>, 0x48>,
-    FrameBit<ChannelYellowPedClearDriver<0x09>, 0x49>,
-    FrameBit<ChannelYellowPedClearDriver<0x0A>, 0x4A>,
-    FrameBit<ChannelYellowPedClearDriver<0x0A>, 0x4B>,
-    FrameBit<ChannelYellowPedClearDriver<0x0B>, 0x4C>,
-    FrameBit<ChannelYellowPedClearDriver<0x0B>, 0x4D>,
-    FrameBit<ChannelYellowPedClearDriver<0x0C>, 0x4E>,
-    FrameBit<ChannelYellowPedClearDriver<0x0C>, 0x4F>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x09>, 0x48>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x09>, 0x49>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0A>, 0x4A>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0A>, 0x4B>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0B>, 0x4C>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0B>, 0x4D>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0C>, 0x4E>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0C>, 0x4F>,
     // Byte 10
-    FrameBit<ChannelYellowPedClearDriver<0x0D>, 0x50>,
-    FrameBit<ChannelYellowPedClearDriver<0x0D>, 0x51>,
-    FrameBit<ChannelYellowPedClearDriver<0x0E>, 0x52>,
-    FrameBit<ChannelYellowPedClearDriver<0x0E>, 0x53>,
-    FrameBit<ChannelYellowPedClearDriver<0x0F>, 0x54>,
-    FrameBit<ChannelYellowPedClearDriver<0x0F>, 0x55>,
-    FrameBit<ChannelYellowPedClearDriver<0x10>, 0x56>,
-    FrameBit<ChannelYellowPedClearDriver<0x10>, 0x57>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0D>, 0x50>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0D>, 0x51>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0E>, 0x52>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0E>, 0x53>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0F>, 0x54>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x0F>, 0x55>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x10>, 0x56>,
+    FrameBit<mmu::ChannelYellowPedClearDriver<0x10>, 0x57>,
     // ----------------------------------------------
     // Byte 11 - Channel Red Driver
     // ----------------------------------------------
-    FrameBit<ChannelRedDoNotWalkDriver<0x01>, 0x58>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x01>, 0x59>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x02>, 0x5A>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x02>, 0x5B>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x03>, 0x5C>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x03>, 0x5D>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x04>, 0x5E>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x04>, 0x5F>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x01>, 0x58>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x01>, 0x59>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x02>, 0x5A>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x02>, 0x5B>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x03>, 0x5C>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x03>, 0x5D>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x04>, 0x5E>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x04>, 0x5F>,
     // Byte 12
-    FrameBit<ChannelRedDoNotWalkDriver<0x05>, 0x60>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x05>, 0x61>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x06>, 0x62>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x06>, 0x63>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x07>, 0x64>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x07>, 0x65>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x08>, 0x66>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x08>, 0x67>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x05>, 0x60>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x05>, 0x61>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x06>, 0x62>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x06>, 0x63>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x07>, 0x64>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x07>, 0x65>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x08>, 0x66>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x08>, 0x67>,
     // Byte 13
-    FrameBit<ChannelRedDoNotWalkDriver<0x09>, 0x68>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x09>, 0x69>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0A>, 0x6A>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0A>, 0x6B>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0B>, 0x6C>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0B>, 0x6D>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0C>, 0x6E>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0C>, 0x6F>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x09>, 0x68>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x09>, 0x69>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0A>, 0x6A>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0A>, 0x6B>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0B>, 0x6C>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0B>, 0x6D>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0C>, 0x6E>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0C>, 0x6F>,
     // Byte 14
-    FrameBit<ChannelRedDoNotWalkDriver<0x0D>, 0x70>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0D>, 0x71>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0E>, 0x72>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0E>, 0x73>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0F>, 0x74>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x0F>, 0x75>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x10>, 0x76>,
-    FrameBit<ChannelRedDoNotWalkDriver<0x10>, 0x77>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0D>, 0x70>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0D>, 0x71>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0E>, 0x72>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0E>, 0x73>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0F>, 0x74>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x0F>, 0x75>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x10>, 0x76>,
+    FrameBit<mmu::ChannelRedDoNotWalkDriver<0x10>, 0x77>,
     // ----------------------------------------------
     // Byte 15 : Bit 0x78 ~ 0x7E are reserved bits.
     // ----------------------------------------------
-    FrameBit<LoadSwitchFlash, 0x7F>
+    FrameBit<mmu::LoadSwitchFlash, 0x7F>
 >;
 
 using LoadSwitchDriversAckFrame
@@ -1259,89 +1294,89 @@ using MMUInputStatusRequestAckFrame
     // ----------------------------------------------
     // Byte 3 - Channel Green Status 1 ~ 8
     //-----------------------------------------------
-    FrameBit<ChannelGreenWalkStatus<0x01>, 0x18>,
-    FrameBit<ChannelGreenWalkStatus<0x02>, 0x19>,
-    FrameBit<ChannelGreenWalkStatus<0x03>, 0x1A>,
-    FrameBit<ChannelGreenWalkStatus<0x04>, 0x1B>,
-    FrameBit<ChannelGreenWalkStatus<0x05>, 0x1C>,
-    FrameBit<ChannelGreenWalkStatus<0x06>, 0x1D>,
-    FrameBit<ChannelGreenWalkStatus<0x07>, 0x1E>,
-    FrameBit<ChannelGreenWalkStatus<0x08>, 0x1F>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x01>, 0x18>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x02>, 0x19>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x03>, 0x1A>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x04>, 0x1B>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x05>, 0x1C>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x06>, 0x1D>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x07>, 0x1E>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x08>, 0x1F>,
     // ----------------------------------------------
     // Byte 4 - Channel Green Status 9 ~ 16
     // ----------------------------------------------
-    FrameBit<ChannelGreenWalkStatus<0x09>, 0x20>,
-    FrameBit<ChannelGreenWalkStatus<0x0A>, 0x21>,
-    FrameBit<ChannelGreenWalkStatus<0x0B>, 0x22>,
-    FrameBit<ChannelGreenWalkStatus<0x0C>, 0x23>,
-    FrameBit<ChannelGreenWalkStatus<0x0D>, 0x24>,
-    FrameBit<ChannelGreenWalkStatus<0x0E>, 0x25>,
-    FrameBit<ChannelGreenWalkStatus<0x0E>, 0x26>,
-    FrameBit<ChannelGreenWalkStatus<0x10>, 0x27>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x09>, 0x20>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0A>, 0x21>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0B>, 0x22>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0C>, 0x23>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0D>, 0x24>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0E>, 0x25>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x0E>, 0x26>,
+    FrameBit<mmu::ChannelGreenWalkStatus<0x10>, 0x27>,
     // ----------------------------------------------
     // Byte 5 - Channel Yellow Status 1 ~ 8
     // ----------------------------------------------
-    FrameBit<ChannelYellowPedClearStatus<0x01>, 0x28>,
-    FrameBit<ChannelYellowPedClearStatus<0x02>, 0x29>,
-    FrameBit<ChannelYellowPedClearStatus<0x03>, 0x2A>,
-    FrameBit<ChannelYellowPedClearStatus<0x04>, 0x2B>,
-    FrameBit<ChannelYellowPedClearStatus<0x05>, 0x2C>,
-    FrameBit<ChannelYellowPedClearStatus<0x06>, 0x2D>,
-    FrameBit<ChannelYellowPedClearStatus<0x07>, 0x2E>,
-    FrameBit<ChannelYellowPedClearStatus<0x08>, 0x2F>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x01>, 0x28>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x02>, 0x29>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x03>, 0x2A>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x04>, 0x2B>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x05>, 0x2C>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x06>, 0x2D>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x07>, 0x2E>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x08>, 0x2F>,
     // ----------------------------------------------
     // Byte 6 - Channel Yellow Status 9 ~ 16
     // ----------------------------------------------
-    FrameBit<ChannelYellowPedClearStatus<0x09>, 0x30>,
-    FrameBit<ChannelYellowPedClearStatus<0x0A>, 0x31>,
-    FrameBit<ChannelYellowPedClearStatus<0x0B>, 0x32>,
-    FrameBit<ChannelYellowPedClearStatus<0x0C>, 0x33>,
-    FrameBit<ChannelYellowPedClearStatus<0x0D>, 0x34>,
-    FrameBit<ChannelYellowPedClearStatus<0x0E>, 0x35>,
-    FrameBit<ChannelYellowPedClearStatus<0x0F>, 0x36>,
-    FrameBit<ChannelYellowPedClearStatus<0x10>, 0x37>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x09>, 0x30>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0A>, 0x31>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0B>, 0x32>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0C>, 0x33>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0D>, 0x34>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0E>, 0x35>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x0F>, 0x36>,
+    FrameBit<mmu::ChannelYellowPedClearStatus<0x10>, 0x37>,
     // ----------------------------------------------
     // Byte 7 - Channel Red Status 1 ~ 8
     // ----------------------------------------------
-    FrameBit<ChannelRedDoNotWalkStatus<0x01>, 0x38>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x02>, 0x39>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x03>, 0x3A>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x04>, 0x3B>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x05>, 0x3C>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x06>, 0x3D>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x07>, 0x3E>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x08>, 0x3F>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x01>, 0x38>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x02>, 0x39>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x03>, 0x3A>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x04>, 0x3B>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x05>, 0x3C>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x06>, 0x3D>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x07>, 0x3E>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x08>, 0x3F>,
     // ----------------------------------------------
     // Byte 8 - Channel Red Status 9 ~ 16
     // ----------------------------------------------
-    FrameBit<ChannelRedDoNotWalkStatus<0x09>, 0x40>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0A>, 0x41>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0B>, 0x42>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0C>, 0x43>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0D>, 0x44>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0E>, 0x45>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x0F>, 0x46>,
-    FrameBit<ChannelRedDoNotWalkStatus<0x10>, 0x47>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x09>, 0x40>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0A>, 0x41>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0B>, 0x42>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0C>, 0x43>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0D>, 0x44>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0E>, 0x45>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x0F>, 0x46>,
+    FrameBit<mmu::ChannelRedDoNotWalkStatus<0x10>, 0x47>,
     // ----------------------------------------------
     // Byte 9
     // ----------------------------------------------
     FrameBit<
-        ControllerVoltMonitor,
+        mmu::ControllerVoltMonitor,
         0x48>,
     FrameBit<
-        _24VoltMonitor_I,
+        mmu::_24VoltMonitor_I,
         0x49>,
     FrameBit<
-        _24VoltMonitor_II,
+        mmu::_24VoltMonitor_II,
         0x4A>,
     FrameBit<
-        _24VoltMonitorInhibit,
+        mmu::_24VoltMonitorInhibit,
         0x4B>,
     FrameBit<
-        Reset,
+        mmu::Reset,
         0x4C>,
     FrameBit<
-        RedEnable,
+        mmu::RedEnable,
         0x4D>,
     //  0x4E Reserved
     //  0x4F Reserved
@@ -1349,10 +1384,10 @@ using MMUInputStatusRequestAckFrame
     // Byte 10
     // ----------------------------------------------
     FrameBit<
-        Conflict,
+        mmu::Conflict,
         0x50>,
     FrameBit<
-        RedFailure,
+        mmu::RedFailure,
         0x51>,
     //  0x52 Spare
     //  0x53 Spare
@@ -1364,32 +1399,32 @@ using MMUInputStatusRequestAckFrame
     // Byte 11
     // ----------------------------------------------
     FrameBit<
-        DiagnosticFailure,
+        mmu::DiagnosticFailure,
         0x58>,
     FrameBit<
-        MinimumClearanceFailure,
+        mmu::MinimumClearanceFailure,
         0x59>,
     FrameBit<
-        Port1TimeoutFailure,
+        mmu::Port1TimeoutFailure,
         0x5A>,
     FrameBit<
-        FailedAndOutputRelayTransferred,
+        mmu::FailedAndOutputRelayTransferred,
         0x5B>,
     FrameBit<
-        FailedAndImmediateResponse,
+        mmu::FailedAndImmediateResponse,
         0x5C>,
     //  0x5D Reserved
     FrameBit<
-        LocalFlashStatus,
+        mmu::LocalFlashStatus,
         0x5E>,
     FrameBit<
-        StartupFlashCall,
+        mmu::StartupFlashCall,
         0x5F>,
     // ----------------------------------------------
     // Byte 12
     // ----------------------------------------------
     FrameBit<
-        FYAFlashRateFailure,
+        mmu::FYAFlashRateFailure,
         0x60>
     //  0x61 Reserved
     //  0x62 Reserved
@@ -1421,203 +1456,203 @@ using MMUProgrammingRequestAckFrame
     // ----------------------------------------------
     // Byte 3
     //-----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x02>, 0x18>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x03>, 0x19>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x04>, 0x1A>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x05>, 0x1B>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x06>, 0x1C>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x07>, 0x1D>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x08>, 0x1E>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x09>, 0x1F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x02>, 0x18>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x03>, 0x19>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x04>, 0x1A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x05>, 0x1B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x06>, 0x1C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x07>, 0x1D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x08>, 0x1E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x09>, 0x1F>,
     // ----------------------------------------------
     // Byte 4
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0A>, 0x20>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0B>, 0x21>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0C>, 0x22>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0D>, 0x23>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0E>, 0x24>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x0F>, 0x25>,
-    FrameBit<ChannelCompatibilityStatus<0x01, 0x10>, 0x26>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x03>, 0x27>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0A>, 0x20>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0B>, 0x21>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0C>, 0x22>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0D>, 0x23>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0E>, 0x24>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x0F>, 0x25>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x01, 0x10>, 0x26>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x03>, 0x27>,
     // ----------------------------------------------
     // Byte 5
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x04>, 0x28>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x05>, 0x29>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x06>, 0x2A>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x07>, 0x2B>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x08>, 0x2C>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x09>, 0x2D>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0A>, 0x2E>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0B>, 0x2F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x04>, 0x28>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x05>, 0x29>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x06>, 0x2A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x07>, 0x2B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x08>, 0x2C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x09>, 0x2D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0A>, 0x2E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0B>, 0x2F>,
     // ----------------------------------------------
     // Byte 6
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0C>, 0x30>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0D>, 0x31>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0E>, 0x32>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x0F>, 0x33>,
-    FrameBit<ChannelCompatibilityStatus<0x02, 0x10>, 0x34>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x04>, 0x35>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x05>, 0x36>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x06>, 0x37>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0C>, 0x30>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0D>, 0x31>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0E>, 0x32>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x0F>, 0x33>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x02, 0x10>, 0x34>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x04>, 0x35>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x05>, 0x36>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x06>, 0x37>,
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x07>, 0x38>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x08>, 0x39>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x09>, 0x3A>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0A>, 0x3B>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0B>, 0x3C>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0C>, 0x3D>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0D>, 0x3E>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0E>, 0x3F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x07>, 0x38>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x08>, 0x39>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x09>, 0x3A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0A>, 0x3B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0B>, 0x3C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0C>, 0x3D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0D>, 0x3E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0E>, 0x3F>,
     // ----------------------------------------------
     // Byte 8
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x0F>, 0x40>,
-    FrameBit<ChannelCompatibilityStatus<0x03, 0x10>, 0x41>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x05>, 0x42>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x06>, 0x43>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x07>, 0x44>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x08>, 0x45>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x09>, 0x46>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0A>, 0x47>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x0F>, 0x40>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x03, 0x10>, 0x41>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x05>, 0x42>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x06>, 0x43>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x07>, 0x44>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x08>, 0x45>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x09>, 0x46>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0A>, 0x47>,
     // ----------------------------------------------
     // Byte 9
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0B>, 0x48>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0C>, 0x49>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0D>, 0x4A>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0E>, 0x4B>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x0F>, 0x4C>,
-    FrameBit<ChannelCompatibilityStatus<0x04, 0x10>, 0x4D>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x06>, 0x4E>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x07>, 0x4F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0B>, 0x48>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0C>, 0x49>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0D>, 0x4A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0E>, 0x4B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x0F>, 0x4C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x04, 0x10>, 0x4D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x06>, 0x4E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x07>, 0x4F>,
     // ----------------------------------------------
     // Byte 10
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x08>, 0x50>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x09>, 0x51>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0A>, 0x52>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0B>, 0x53>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0C>, 0x54>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0D>, 0x55>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0E>, 0x56>,
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x0F>, 0x57>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x08>, 0x50>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x09>, 0x51>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0A>, 0x52>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0B>, 0x53>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0C>, 0x54>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0D>, 0x55>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0E>, 0x56>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x0F>, 0x57>,
     // ----------------------------------------------
     // Byte 11
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x05, 0x10>, 0x58>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x07>, 0x59>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x08>, 0x5A>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x09>, 0x5B>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0A>, 0x5C>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0B>, 0x5D>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0C>, 0x5E>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0D>, 0x5F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x05, 0x10>, 0x58>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x07>, 0x59>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x08>, 0x5A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x09>, 0x5B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0A>, 0x5C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0B>, 0x5D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0C>, 0x5E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0D>, 0x5F>,
     // ----------------------------------------------
     // Byte 12
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0E>, 0x60>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x0F>, 0x61>,
-    FrameBit<ChannelCompatibilityStatus<0x06, 0x10>, 0x62>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x08>, 0x63>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x09>, 0x64>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0A>, 0x65>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0B>, 0x66>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0C>, 0x67>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0E>, 0x60>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x0F>, 0x61>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x06, 0x10>, 0x62>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x08>, 0x63>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x09>, 0x64>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0A>, 0x65>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0B>, 0x66>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0C>, 0x67>,
     // ----------------------------------------------
     // Byte 13
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0D>, 0x68>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0E>, 0x69>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x0F>, 0x6A>,
-    FrameBit<ChannelCompatibilityStatus<0x07, 0x10>, 0x6B>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x09>, 0x6C>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0A>, 0x6D>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0B>, 0x6E>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0C>, 0x6F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0D>, 0x68>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0E>, 0x69>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x0F>, 0x6A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x07, 0x10>, 0x6B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x09>, 0x6C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0A>, 0x6D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0B>, 0x6E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0C>, 0x6F>,
     // ----------------------------------------------
     // Byte 14
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0D>, 0x70>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0E>, 0x71>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x0F>, 0x72>,
-    FrameBit<ChannelCompatibilityStatus<0x08, 0x10>, 0x73>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0A>, 0x74>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0B>, 0x75>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0C>, 0x76>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0D>, 0x77>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0D>, 0x70>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0E>, 0x71>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x0F>, 0x72>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x08, 0x10>, 0x73>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0A>, 0x74>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0B>, 0x75>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0C>, 0x76>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0D>, 0x77>,
     // ----------------------------------------------
     // Byte 15
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0E>, 0x78>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x0F>, 0x79>,
-    FrameBit<ChannelCompatibilityStatus<0x09, 0x10>, 0x7A>,
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0B>, 0x7B>,
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0C>, 0x7C>,
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0D>, 0x7D>,
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0E>, 0x7E>,
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0F>, 0x7F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0E>, 0x78>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x0F>, 0x79>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x09, 0x10>, 0x7A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x0B>, 0x7B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x0C>, 0x7C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x0D>, 0x7D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x0E>, 0x7E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x0F>, 0x7F>,
     // ----------------------------------------------
     // Byte 16
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x0A, 0x10>, 0x80>,
-    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0C>, 0x81>,
-    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0D>, 0x82>,
-    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0E>, 0x83>,
-    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0F>, 0x84>,
-    FrameBit<ChannelCompatibilityStatus<0x0B, 0x10>, 0x85>,
-    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0D>, 0x86>,
-    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0E>, 0x87>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0A, 0x10>, 0x80>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0B, 0x0C>, 0x81>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0B, 0x0D>, 0x82>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0B, 0x0E>, 0x83>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0B, 0x0F>, 0x84>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0B, 0x10>, 0x85>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0C, 0x0D>, 0x86>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0C, 0x0E>, 0x87>,
     // ----------------------------------------------
     // Byte 17
     // ----------------------------------------------
-    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0F>, 0x88>,
-    FrameBit<ChannelCompatibilityStatus<0x0C, 0x10>, 0x89>,
-    FrameBit<ChannelCompatibilityStatus<0x0D, 0x0E>, 0x8A>,
-    FrameBit<ChannelCompatibilityStatus<0x0D, 0x0F>, 0x8B>,
-    FrameBit<ChannelCompatibilityStatus<0x0D, 0x10>, 0x8C>,
-    FrameBit<ChannelCompatibilityStatus<0x0E, 0x0F>, 0x8D>,
-    FrameBit<ChannelCompatibilityStatus<0x0E, 0x10>, 0x8E>,
-    FrameBit<ChannelCompatibilityStatus<0x0F, 0x10>, 0x8F>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0C, 0x0F>, 0x88>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0C, 0x10>, 0x89>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0D, 0x0E>, 0x8A>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0D, 0x0F>, 0x8B>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0D, 0x10>, 0x8C>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0E, 0x0F>, 0x8D>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0E, 0x10>, 0x8E>,
+    FrameBit<mmu::ChannelCompatibilityStatus<0x0F, 0x10>, 0x8F>,
     // ----------------------------------------------
     // Byte 18
     // ----------------------------------------------
-    FrameBit<MinimumYellowChangeDisable<0x01>, 0x90>,
-    FrameBit<MinimumYellowChangeDisable<0x02>, 0x91>,
-    FrameBit<MinimumYellowChangeDisable<0x03>, 0x92>,
-    FrameBit<MinimumYellowChangeDisable<0x04>, 0x93>,
-    FrameBit<MinimumYellowChangeDisable<0x05>, 0x94>,
-    FrameBit<MinimumYellowChangeDisable<0x06>, 0x95>,
-    FrameBit<MinimumYellowChangeDisable<0x07>, 0x96>,
-    FrameBit<MinimumYellowChangeDisable<0x08>, 0x97>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x01>, 0x90>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x02>, 0x91>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x03>, 0x92>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x04>, 0x93>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x05>, 0x94>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x06>, 0x95>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x07>, 0x96>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x08>, 0x97>,
     // ----------------------------------------------
     // Byte 19
     // ----------------------------------------------
-    FrameBit<MinimumYellowChangeDisable<0x09>, 0x98>,
-    FrameBit<MinimumYellowChangeDisable<0x0A>, 0x99>,
-    FrameBit<MinimumYellowChangeDisable<0x0B>, 0x9A>,
-    FrameBit<MinimumYellowChangeDisable<0x0C>, 0x9B>,
-    FrameBit<MinimumYellowChangeDisable<0x0D>, 0x9C>,
-    FrameBit<MinimumYellowChangeDisable<0x0E>, 0x9D>,
-    FrameBit<MinimumYellowChangeDisable<0x0F>, 0x9E>,
-    FrameBit<MinimumYellowChangeDisable<0x10>, 0x9F>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x09>, 0x98>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0A>, 0x99>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0B>, 0x9A>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0C>, 0x9B>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0D>, 0x9C>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0E>, 0x9D>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x0F>, 0x9E>,
+    FrameBit<mmu::MinimumYellowChangeDisable<0x10>, 0x9F>,
     // ----------------------------------------------
     // Byte 20
     // ----------------------------------------------
-    FrameBit<MinimumFlashTimeBit_0, 0xA0>,
-    FrameBit<MinimumFlashTimeBit_1, 0xA1>,
-    FrameBit<MinimumFlashTimeBit_2, 0xA2>,
-    FrameBit<MinimumFlashTimeBit_3, 0xA3>,
+    FrameBit<mmu::MinimumFlashTimeBit_0, 0xA0>,
+    FrameBit<mmu::MinimumFlashTimeBit_1, 0xA1>,
+    FrameBit<mmu::MinimumFlashTimeBit_2, 0xA2>,
+    FrameBit<mmu::MinimumFlashTimeBit_3, 0xA3>,
 
     FrameBit<
-        _24VoltLatch,
+        mmu::_24VoltLatch,
         0xA4>,
     FrameBit<
-        CVMFaultMonitorLatch,
+        mmu::CVMFaultMonitorLatch,
         0xA5>
     // 0xA6 - Reserved
     // 0xA7 - Reserved
@@ -1631,7 +1666,7 @@ using MMUProgrammingRequestAckFrame
 
 using DateTimeBroadcastFrame
 = Frame<
-    0x10, // MMU Address = 16
+    0xFF, // Broadcast Address = 255
     0x09, // FrameID
     12,   // 12 Bytes
     SSR_CommandFrameType,
@@ -1645,56 +1680,52 @@ using DateTimeBroadcastFrame
     // Byte 3~9: Mon/Day/Year/Hour/Min/Sec/TenthSec
     //-----------------------------------------------
     FrameByte<
-        CUReportedMonth,                  // 1 ~ 12
+        broadcast::CUReportedMonth,                  // 1 ~ 12
         3>,
     FrameByte<
-        CUReportedDay,                    // 1 ~ 31
+        broadcast::CUReportedDay,                    // 1 ~ 31
         4>,
     FrameByte<
-        CUReportedYear,                   // 0 ~ 99
+        broadcast::CUReportedYear,                   // 0 ~ 99
         5>,
     FrameByte<
-        CUReportedHour,                   // 0 ~ 23
+        broadcast::CUReportedHour,                   // 0 ~ 23
         6>,
     FrameByte<
-        CUReportedMinutes,                // 0 ~ 59
+        broadcast::CUReportedMinutes,                // 0 ~ 59
         7>,
     FrameByte<
-        CUReportedSeconds,                // 0 ~ 59
+        broadcast::CUReportedSeconds,                // 0 ~ 59
         8>,
     FrameByte<
-        CUReportedTenthsOfSeconds,        // 0 ~ 9
+        broadcast::CUReportedTenthsOfSeconds,        // 0 ~ 9
         9>,
 
     //-----------------------------------------------
     // Byte 10 - TF BIU # 1 ~ 8 Present State
     //-----------------------------------------------
-    FrameBit<TFBIUPresent<0x01>, 0x50>,
-    FrameBit<TFBIUPresent<0x02>, 0x51>,
-    FrameBit<TFBIUPresent<0x03>, 0x52>,
-    FrameBit<TFBIUPresent<0x04>, 0x53>,
-    FrameBit<TFBIUPresent<0x05>, 0x54>,
-    FrameBit<TFBIUPresent<0x06>, 0x55>,
-    FrameBit<TFBIUPresent<0x07>, 0x56>,
-    FrameBit<TFBIUPresent<0x08>, 0x57>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x01>, 0x50>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x02>, 0x51>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x03>, 0x52>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x04>, 0x53>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x05>, 0x54>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x06>, 0x55>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x07>, 0x56>,
+    FrameBit<broadcast::CUReportedTFBIUPresence<0x08>, 0x57>,
     //-----------------------------------------------
-    // Byte 11 - TF BIU # 1 ~ 8 Present State
+    // Byte 11 - DET BIU # 1 ~ 8 Present State
     //-----------------------------------------------
-    FrameBit<DETBIUPresent<0x01>, 0x58>,
-    FrameBit<DETBIUPresent<0x02>, 0x59>,
-    FrameBit<DETBIUPresent<0x03>, 0x5A>,
-    FrameBit<DETBIUPresent<0x04>, 0x5B>,
-    FrameBit<DETBIUPresent<0x05>, 0x5C>,
-    FrameBit<DETBIUPresent<0x06>, 0x5D>,
-    FrameBit<DETBIUPresent<0x07>, 0x5E>,
-    FrameBit<DETBIUPresent<0x08>, 0x5F>
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x01>, 0x58>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x02>, 0x59>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x03>, 0x5A>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x04>, 0x5B>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x05>, 0x5C>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x06>, 0x5D>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x07>, 0x5E>,
+    FrameBit<broadcast::CUReportedDETBIUPresence<0x08>, 0x5F>
 >;
 
-} // end of namespace atc::mmu
-
-namespace biu {
-
-} // end of namespace atc::biu
+} // end of namespace atc::serialframe
 
 
 } // end of namespace atc
