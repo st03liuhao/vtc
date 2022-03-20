@@ -1120,7 +1120,7 @@ using MMUInputStatusRequestAckFrame
     // ----------------------------------------------
     // Byte 0 - Address, 0x10 for MMU
     // Byte 1 - Control, always 0x83
-    // Byte 2 - FrameID, 0x81 for Type 129 Command Frame
+    // Byte 2 - FrameID, 0x81 for Type 129 Response Frame
     // ----------------------------------------------
     // Byte 3 - Channel Green Status 1 ~ 8
     //-----------------------------------------------
@@ -1275,8 +1275,221 @@ using MMUProgrammingRequestFrame
 using MMUProgrammingRequestAckFrame
 = Frame<
     0x83, // FrameID = 131
-    3,
-    SSG_ResponseFrameType
+    23,
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x10 for MMU
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x83 for Type 131 Response Frame
+    // ----------------------------------------------
+    // Byte 3
+    //-----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x02>, 0x18>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x03>, 0x19>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x04>, 0x1A>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x05>, 0x1B>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x06>, 0x1C>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x07>, 0x1D>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x08>, 0x1E>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x09>, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0A>, 0x20>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0B>, 0x21>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0C>, 0x22>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0D>, 0x23>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0E>, 0x24>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x0F>, 0x25>,
+    FrameBit<ChannelCompatibilityStatus<0x01, 0x10>, 0x26>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x03>, 0x27>,
+    // ----------------------------------------------
+    // Byte 5
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x04>, 0x28>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x05>, 0x29>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x06>, 0x2A>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x07>, 0x2B>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x08>, 0x2C>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x09>, 0x2D>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0A>, 0x2E>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0B>, 0x2F>,
+    // ----------------------------------------------
+    // Byte 6
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0C>, 0x30>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0D>, 0x31>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0E>, 0x32>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x0F>, 0x33>,
+    FrameBit<ChannelCompatibilityStatus<0x02, 0x10>, 0x34>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x04>, 0x35>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x05>, 0x36>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x06>, 0x37>,
+    // ----------------------------------------------
+    // Byte 7
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x07>, 0x38>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x08>, 0x39>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x09>, 0x3A>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0A>, 0x3B>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0B>, 0x3C>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0C>, 0x3D>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0D>, 0x3E>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0E>, 0x3F>,
+    // ----------------------------------------------
+    // Byte 8
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x0F>, 0x40>,
+    FrameBit<ChannelCompatibilityStatus<0x03, 0x10>, 0x41>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x05>, 0x42>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x06>, 0x43>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x07>, 0x44>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x08>, 0x45>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x09>, 0x46>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0A>, 0x47>,
+    // ----------------------------------------------
+    // Byte 9
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0B>, 0x48>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0C>, 0x49>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0D>, 0x4A>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0E>, 0x4B>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x0F>, 0x4C>,
+    FrameBit<ChannelCompatibilityStatus<0x04, 0x10>, 0x4D>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x06>, 0x4E>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x07>, 0x4F>,
+    // ----------------------------------------------
+    // Byte 10
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x08>, 0x50>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x09>, 0x51>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0A>, 0x52>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0B>, 0x53>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0C>, 0x54>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0D>, 0x55>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0E>, 0x56>,
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x0F>, 0x57>,
+    // ----------------------------------------------
+    // Byte 11
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x05, 0x10>, 0x58>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x07>, 0x59>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x08>, 0x5A>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x09>, 0x5B>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0A>, 0x5C>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0B>, 0x5D>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0C>, 0x5E>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0D>, 0x5F>,
+    // ----------------------------------------------
+    // Byte 12
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0E>, 0x60>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x0F>, 0x61>,
+    FrameBit<ChannelCompatibilityStatus<0x06, 0x10>, 0x62>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x08>, 0x63>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x09>, 0x64>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0A>, 0x65>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0B>, 0x66>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0C>, 0x67>,
+    // ----------------------------------------------
+    // Byte 13
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0D>, 0x68>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0E>, 0x69>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x0F>, 0x6A>,
+    FrameBit<ChannelCompatibilityStatus<0x07, 0x10>, 0x6B>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x09>, 0x6C>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0A>, 0x6D>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0B>, 0x6E>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0C>, 0x6F>,
+    // ----------------------------------------------
+    // Byte 14
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0D>, 0x70>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0E>, 0x71>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x0F>, 0x72>,
+    FrameBit<ChannelCompatibilityStatus<0x08, 0x10>, 0x73>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0A>, 0x74>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0B>, 0x75>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0C>, 0x76>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0D>, 0x77>,
+    // ----------------------------------------------
+    // Byte 15
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0E>, 0x78>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x0F>, 0x79>,
+    FrameBit<ChannelCompatibilityStatus<0x09, 0x10>, 0x7A>,
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0B>, 0x7B>,
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0C>, 0x7C>,
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0D>, 0x7D>,
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0E>, 0x7E>,
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x0F>, 0x7F>,
+    // ----------------------------------------------
+    // Byte 16
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x0A, 0x10>, 0x80>,
+    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0C>, 0x81>,
+    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0D>, 0x82>,
+    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0E>, 0x83>,
+    FrameBit<ChannelCompatibilityStatus<0x0B, 0x0F>, 0x84>,
+    FrameBit<ChannelCompatibilityStatus<0x0B, 0x10>, 0x85>,
+    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0D>, 0x86>,
+    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0E>, 0x87>,
+    // ----------------------------------------------
+    // Byte 17
+    // ----------------------------------------------
+    FrameBit<ChannelCompatibilityStatus<0x0C, 0x0F>, 0x88>,
+    FrameBit<ChannelCompatibilityStatus<0x0C, 0x10>, 0x89>,
+    FrameBit<ChannelCompatibilityStatus<0x0D, 0x0E>, 0x8A>,
+    FrameBit<ChannelCompatibilityStatus<0x0D, 0x0F>, 0x8B>,
+    FrameBit<ChannelCompatibilityStatus<0x0D, 0x10>, 0x8C>,
+    FrameBit<ChannelCompatibilityStatus<0x0E, 0x0F>, 0x8D>,
+    FrameBit<ChannelCompatibilityStatus<0x0E, 0x10>, 0x8E>,
+    FrameBit<ChannelCompatibilityStatus<0x0F, 0x10>, 0x8F>,
+    // ----------------------------------------------
+    // Byte 18
+    // ----------------------------------------------
+    FrameBit<MinimumYellowChangeDisable<0x01>, 0x90>,
+    FrameBit<MinimumYellowChangeDisable<0x02>, 0x91>,
+    FrameBit<MinimumYellowChangeDisable<0x03>, 0x92>,
+    FrameBit<MinimumYellowChangeDisable<0x04>, 0x93>,
+    FrameBit<MinimumYellowChangeDisable<0x05>, 0x94>,
+    FrameBit<MinimumYellowChangeDisable<0x06>, 0x95>,
+    FrameBit<MinimumYellowChangeDisable<0x07>, 0x96>,
+    FrameBit<MinimumYellowChangeDisable<0x08>, 0x97>,
+    // ----------------------------------------------
+    // Byte 19
+    // ----------------------------------------------
+    FrameBit<MinimumYellowChangeDisable<0x09>, 0x98>,
+    FrameBit<MinimumYellowChangeDisable<0x0A>, 0x99>,
+    FrameBit<MinimumYellowChangeDisable<0x0B>, 0x9A>,
+    FrameBit<MinimumYellowChangeDisable<0x0C>, 0x9B>,
+    FrameBit<MinimumYellowChangeDisable<0x0D>, 0x9C>,
+    FrameBit<MinimumYellowChangeDisable<0x0E>, 0x9D>,
+    FrameBit<MinimumYellowChangeDisable<0x0F>, 0x9E>,
+    FrameBit<MinimumYellowChangeDisable<0x10>, 0x9F>,
+    // ----------------------------------------------
+    // Byte 20
+    // ----------------------------------------------
+    FrameBit<MinimumFlashTimeBit_0, 0xA0>,
+    FrameBit<MinimumFlashTimeBit_1, 0xA1>,
+    FrameBit<MinimumFlashTimeBit_2, 0xA2>,
+    FrameBit<MinimumFlashTimeBit_3, 0xA3>,
+
+    FrameBit<
+        _24VoltLatch,
+        0xA4>,
+    FrameBit<
+        CVMFaultMonitorLatch,
+        0xA5>
+    // 0xA6 - Reserved
+    // 0xA7 - Reserved
+    // ----------------------------------------------
+    // Byte 21 - Reserved
+    // ----------------------------------------------
+    // ----------------------------------------------
+    // Byte 22 - Reserved
+    // ----------------------------------------------      
 >;
 
 using DateTimeBroadcastFrame
