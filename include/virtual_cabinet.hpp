@@ -1119,6 +1119,11 @@ private:
   std::tuple<Ts...> m_frame_elements;
 };
 
+template<Byte FrameID>
+struct FrameType
+{
+};
+
 /* MMU LoadSwitchDriverFrame (TYPE 0 Command Frame)
    For each channel, there are two bits for dimming purpose
    ----------------------------------------------------
@@ -1265,6 +1270,12 @@ using LoadSwitchDriversFrame
     FrameBit<mmu::LoadSwitchFlash, 0x7F>
 >;
 
+template<>
+struct FrameType<0>
+{
+  using type = LoadSwitchDriversFrame;
+};
+
 using LoadSwitchDriversAckFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1273,6 +1284,12 @@ using LoadSwitchDriversAckFrame
     SSG_ResponseFrameType
 >;
 
+template<>
+struct FrameType<128>
+{
+  using type = LoadSwitchDriversAckFrame;
+};
+
 using MMUInputStatusRequestFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1280,6 +1297,12 @@ using MMUInputStatusRequestFrame
     3,
     SSR_CommandFrameType
 >;
+
+template<>
+struct FrameType<1>
+{
+  using type = MMUInputStatusRequestFrame;
+};
 
 using MMUInputStatusRequestAckFrame
 = Frame<
@@ -1435,6 +1458,12 @@ using MMUInputStatusRequestAckFrame
     //  0x67 Reserved
 >;
 
+template<>
+struct FrameType<129>
+{
+  using type = MMUInputStatusRequestAckFrame;
+};
+
 using MMUProgrammingRequestFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1442,6 +1471,12 @@ using MMUProgrammingRequestFrame
     3,
     SSR_CommandFrameType
 >;
+
+template<>
+struct FrameType<3>
+{
+  using type = MMUProgrammingRequestFrame;
+};
 
 using MMUProgrammingRequestAckFrame
 = Frame<
@@ -1664,6 +1699,12 @@ using MMUProgrammingRequestAckFrame
     // ----------------------------------------------      
 >;
 
+template<>
+struct FrameType<131>
+{
+  using type = MMUProgrammingRequestAckFrame;
+};
+
 using DateTimeBroadcastFrame
 = Frame<
     0xFF, // Broadcast Address = 255
@@ -1724,6 +1765,12 @@ using DateTimeBroadcastFrame
     FrameBit<broadcast::CUReportedDETBIUPresence<0x07>, 0x5E>,
     FrameBit<broadcast::CUReportedDETBIUPresence<0x08>, 0x5F>
 >;
+
+template<>
+struct FrameType<9>
+{
+  using type = DateTimeBroadcastFrame;
+};
 
 } // end of namespace atc::serialframe
 
