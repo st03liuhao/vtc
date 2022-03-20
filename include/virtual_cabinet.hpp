@@ -53,6 +53,8 @@ template<typename T>
 concept is_valid_variable_value_t
 = std::is_same_v<T, Bit> || std::is_same_v<T, Byte> || std::is_same_v<T, Word> || std::is_same_v<T, Integer>;
 
+namespace {
+
 template<typename ValueT, index_t I> /* */
 requires is_valid_variable_value_t<ValueT>
 struct Variable
@@ -72,7 +74,11 @@ struct Variable
 template<typename T>
 using ValueType = typename T::Variable::value_t;
 
+} // end of unnamed namespace
+
 namespace broadcast {
+
+namespace {
 
 struct BroadcastVariableType
 {
@@ -93,6 +99,8 @@ struct BroadcastVariable : Variable<ValueT, I>
   BroadcastVariable &operator=(BroadcastVariable &) = delete;
   BroadcastVariable &operator=(BroadcastVariable &&) = delete;
 };
+
+} // end of unnamed namespace
 
 using CUReportedMonth
 = BroadcastVariable<AUTO_TAG_ID, Byte>;
@@ -133,6 +141,8 @@ T variable{};
 
 namespace cu {
 
+namespace {
+
 struct ControllerUnitVariableType
 {
 };
@@ -140,6 +150,20 @@ struct ControllerUnitVariableType
 template<typename T>
 concept is_cu_variable
 = std::is_same_v<typename T::type, ControllerUnitVariableType>;
+
+template<tag_t, typename ValueT, index_t I = 0>
+struct CUVariable : Variable<ValueT, I>
+{
+  using type = ControllerUnitVariableType;
+
+  CUVariable() = default;
+  CUVariable(CUVariable &) = delete;
+  CUVariable(CUVariable &&) = delete;
+  CUVariable &operator=(CUVariable &) = delete;
+  CUVariable &operator=(CUVariable &&) = delete;
+};
+
+} // end of unnamed namespace
 
 struct Phase
 {
@@ -222,6 +246,8 @@ T variable{};
 
 namespace io {
 
+namespace {
+
 struct IOVariableType
 {
 };
@@ -245,6 +271,8 @@ struct IOVariable : Variable<ValueT, I>
 template<typename T>/* */
 requires is_io_variable<T>
 T variable{};
+
+}
 
 namespace output {
 
@@ -762,6 +790,8 @@ using VehicleDetReset
 
 namespace mmu {
 
+namespace {
+
 struct MMUVariableType
 {
 };
@@ -781,6 +811,8 @@ struct MMUVariable : Variable<ValueT, I>
   MMUVariable &operator=(MMUVariable &) = delete;
   MMUVariable &operator=(MMUVariable &&) = delete;
 };
+
+}
 
 template<index_t I>/* */
 requires (IsValidIndex(I, cu::Channel::max_Channels))
@@ -930,7 +962,16 @@ constexpr T &variable()
 }
 //---------------------------------------------------------
 
-namespace serialframe {
+namespace serial {
+
+/* SDLC encoding using non-return-to-zero NRZ encoding, high = 1, low = 0.
+ * Reserved bits will be set to low. Spare bits are vendor specific, but since
+ * we don't deal with vendor specific features, spare bits will also be set to 0.
+ * */
+constexpr int max_sdlc_frame_bytesize = 64; // max byte size = 64 byte
+constexpr int sdlc_clock_speed = 153600;    // clock frequency
+
+namespace {
 
 struct FrameElementType
 {
@@ -958,7 +999,7 @@ struct FrameBit
   {
     static auto l_byte_pos = pos / 8;
     static auto l_num_of_bits_to_shift = pos % 8;
-    Byte i = (ref_var.value = Bit::On) ? 1 : 0;
+    Byte i = (ref_var.value == Bit::On) ? 1 : 0;
     a_data_out[l_byte_pos] = a_data_out[l_byte_pos] | (i << l_num_of_bits_to_shift);
   }
 
@@ -1039,9 +1080,14 @@ template<typename T>
 concept is_valid_frame
 = is_valid_primary_station_frame<T> || is_valid_secondary_station_frame<T>;
 
-template<typename T, typename ...Ts>
+constexpr auto IsValidFrameByteSize(size_t a_size)
+{
+  return (a_size >= 1) && (a_size <= max_sdlc_frame_bytesize);
+}
+
+template<size_t FrameByteSize, typename T, typename ...Ts>
 concept is_valid_frame_and_elem
-= is_valid_frame<T> && (is_valid_frame_elem<Ts> &&...);
+= is_valid_frame<T> && (is_valid_frame_elem<Ts> &&...) && (IsValidFrameByteSize(FrameByteSize));
 
 template<typename T>
 concept is_generative_frame
@@ -1051,15 +1097,8 @@ template<typename T>
 concept is_receivable_frame
 = std::is_same_v<T, PSR_ResponseFrameType> || std::is_same_v<T, SSR_CommandFrameType>;
 
-/* SDLC encoding using non-return-to-zero NRZ encoding, high = 1, low = 0.
- * Reserved bits will be set to low. Spare bits are vendor specific, but since
- * we don't deal with vendor specific features, spare bits will also be set to 0.
- * */
-constexpr int max_sdlc_frame_bytesize = 64; // max byte size = 64 byte
-constexpr int sdlc_clock_speed = 153600;    // clock frequency
-
 template<Byte Address, Byte FrameID, size_t FrameByteSize, typename T, typename ...Ts>/* */
-requires is_valid_frame_and_elem<T, Ts...>
+requires is_valid_frame_and_elem<FrameByteSize, T, Ts...>
 class Frame
 {
 public:
@@ -1073,7 +1112,7 @@ public:
 
   template<typename = T>
   requires is_receivable_frame<T>
-  void operator<<(const std::span<const Byte, FrameByteSize> a_data_in)
+  void operator<<(const std::span<const Byte> a_data_in)
   {
     // [0]: Address; [1]: SDLC control code 0x83; [2]: FrameID.
     // Last 16 bits CCITT-CRC of the SDLC payload stripped away, not part of a_data_in.
@@ -1085,9 +1124,9 @@ public:
 
   template<typename = T>
   requires is_generative_frame<T>
-  void operator>>(std::span<const Byte, FrameByteSize> a_data_out)
+  void operator>>(std::span<Byte> a_data_out)
   {
-    std::fill(a_data_out, a_data_out + FrameByteSize, 0);
+    std::fill(a_data_out.begin(), a_data_out.end(), 0);
     a_data_out[0] = address;
     a_data_out[1] = 0x83;
     a_data_out[2] = id;
@@ -1099,25 +1138,31 @@ public:
   static constexpr size_t bytesize{FrameByteSize};
 private:
   template<size_t I = 0>
-  inline void assign(const std::span<const Byte, FrameByteSize> a_data_in)
+  inline void assign(const std::span<const Byte> a_data_in)
   {
     if constexpr (I < sizeof...(Ts)) {
       std::get<I>(m_frame_elements) << a_data_in;
-      assign<I + 1>(a_data_in);
+      // @formatter:off
+      assign<I+1>(a_data_in);
+      // @formatter:on
     }
   }
 
   template<size_t I = 0>
-  inline void generate(const std::span<Byte, FrameByteSize> a_data_out)
+  inline void generate(std::span<Byte> a_data_out)
   {
     if constexpr (I < sizeof...(Ts)) {
       std::get<I>(m_frame_elements) >> a_data_out;
-      generate < I + 1 > (a_data_out);
+      // @formatter:off
+      generate <I+1> (a_data_out);
+      // @formatter:on
     }
   }
 
   std::tuple<Ts...> m_frame_elements;
 };
+
+}
 
 template<Byte FrameID>
 struct FrameType
@@ -1772,7 +1817,54 @@ struct FrameType<9>
   using type = DateTimeBroadcastFrame;
 };
 
+namespace {
+
+template<Byte CommandFrameID, Byte ResponseFrameID>
+using FrameMap = std::tuple<typename FrameType<CommandFrameID>::type, typename FrameType<ResponseFrameID>::type>;
+
+template<typename ...Ts>
+using FrameMapsType = std::tuple<Ts...>;
+
+using FrameMaps = FrameMapsType<
+    FrameMap<0, 128>,
+    FrameMap<1, 129>,
+    FrameMap<3, 131>
+>;
+
+FrameMaps frame_maps;
+constexpr auto frame_maps_size = std::tuple_size_v<decltype(frame_maps)>;
+static std::array<Byte, max_sdlc_frame_bytesize> buffer = {0};
+
+} // end of unnamed namespace
+
+template<int I = 0>
+std::tuple<bool, std::span<Byte>> Dispatch(std::span<const Byte> a_data_in, std::function<void(Byte)> a_on_command = nullptr)
+{
+  if constexpr (I < frame_maps_size) {
+    auto &cmd_frame = std::get<0>(std::get<I>(frame_maps));
+    auto &res_frame = std::get<1>(std::get<I>(frame_maps));
+
+    if (cmd_frame.id == a_data_in[2]) {
+      cmd_frame << a_data_in;
+
+      if (a_on_command) {
+        a_on_command(cmd_frame.id);
+      }
+
+      res_frame >> buffer; // Note - the buffer will be emptied at the beginning of inside >>().
+      return {true, {buffer.data(), res_frame.bytesize}};
+    } else {
+      // @formatter:off
+      return Dispatch<I+1> (a_data_in);
+      // @formatter:on
+    }
+  } else {
+    return {false, buffer};
+  }
+}
+
 } // end of namespace atc::serialframe
+
 
 
 } // end of namespace atc

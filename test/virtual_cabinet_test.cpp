@@ -66,7 +66,7 @@ TEST_CASE("FrameBit can be instantiated")
 {
   using namespace mmu;
 
-  serialframe::FrameBit<LoadSwitchFlash, 127> l_framebit;
+  serial::FrameBit<LoadSwitchFlash, 127> l_framebit;
   CHECK(l_framebit.pos == 127);
 }
 
@@ -74,10 +74,10 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
 {
   using namespace mmu;
 
-  serialframe::LoadSwitchDriversFrame l_frame;
+  serial::LoadSwitchDriversFrame l_frame_1;
   std::array<Byte, 16>
       l_data = {0x10, 0x83, 0x00, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
-  l_frame << l_data;
+  l_frame_1 << l_data;
 
   CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::On);
 
@@ -85,13 +85,24 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
   CHECK(mmu::variable<ChannelGreenWalkDriver<2>>.value == Bit::Off);
   CHECK(mmu::variable<ChannelGreenWalkDriver<3>>.value == Bit::Off);
   CHECK(mmu::variable<ChannelGreenWalkDriver<4>>.value == Bit::On);
+
+  l_data = {0x10, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  serial::FrameType<0>::type l_frame_2;
+  l_frame_2 << l_data;
+
+  CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::Off);
+
+  CHECK(mmu::variable<ChannelGreenWalkDriver<1>>.value == Bit::Off);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<2>>.value == Bit::Off);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<3>>.value == Bit::Off);
+  CHECK(mmu::variable<ChannelGreenWalkDriver<4>>.value == Bit::Off);
 }
 
 TEST_CASE("mmu::InputStatusRequestFrame can be parsed")
 {
   using namespace mmu;
 
-  serialframe::MMUInputStatusRequestFrame l_frame;
+  serial::MMUInputStatusRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
   l_frame << l_data;
 
@@ -102,7 +113,7 @@ TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
 {
   using namespace mmu;
 
-  serialframe::MMUProgrammingRequestFrame l_frame;
+  serial::MMUProgrammingRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x03};
   l_frame << l_data;
 
@@ -113,7 +124,7 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
 {
   using namespace atc::broadcast;
 
-  serialframe::DateTimeBroadcastFrame l_frame;
+  serial::DateTimeBroadcastFrame l_frame;
   std::array<Byte, 12>     // M     D     Y     H     M     S     0.1   TF    DET
   l_data = {0xFF, 0x83, 0x09, 0x03, 0x12, 0x16, 0x11, 0x20, 0x00, 0x00, 0x01, 0x02}; // 03/18/2022, 17:32:00.0
   l_frame << l_data;
@@ -140,4 +151,18 @@ TEST_CASE("Two channel IDs can be encoded")
   index_t I = a << 8 | b;
   CHECK(I == 0x0102);
 }
+
+TEST_CASE("Type 0 Command Frame can be dispatched")
+{
+  using namespace serial;
+  std::array<Byte, 3> l_data_in = {0x10, 0x83, 0x03};
+  auto result = serial::Dispatch(l_data_in);
+  CHECK(std::get<0>(result));
+  CHECK(std::get<1>(result).size() == FrameType<131>::type::bytesize);
+}
+
+
+
+
+
 
