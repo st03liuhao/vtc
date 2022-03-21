@@ -37,7 +37,7 @@ TEST_CASE("io::output::NotActive can be set")
 
   CHECK(std::is_same_v<decltype(io::variable<output::NotActive>.value), std::atomic<Bit>>);
   CHECK(std::is_same_v<output::NotActive::value_t, Bit>);
-  CHECK(std::is_same_v<output::NotActive::type, IOVariableType>);
+  CHECK(std::is_same_v<output::NotActive::type, IoVariableType>);
 }
 
 TEST_CASE("io::output::ChannelGreenWalkDriver can be set")
@@ -148,7 +148,7 @@ TEST_CASE("Two channel IDs can be encoded")
   Byte a = 1;
   Byte b = 2;
 
-  index_t I = a << 8 | b;
+  Index I = a << 8 | b;
   CHECK(I == 0x0102);
 }
 
@@ -156,9 +156,12 @@ TEST_CASE("Type 0 Command Frame can be dispatched")
 {
   using namespace serial;
   std::array<Byte, 3> l_data_in = {0x10, 0x83, 0x03};
+  mmu::variable<mmu::ChannelCompatibilityStatus<0x01, 0x02>>.value = Bit::On;
   auto result = serial::Dispatch(l_data_in);
   CHECK(std::get<0>(result));
   CHECK(std::get<1>(result).size() == FrameType<131>::type::bytesize);
+  CHECK(std::get<1>(result)[3] == 0x01);
+  CHECK(std::get<1>(result)[4] == 0x00);
 }
 
 
