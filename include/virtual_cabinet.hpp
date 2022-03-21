@@ -27,7 +27,7 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 #include <functional>
 #include <span>
 
-namespace atc {
+namespace vc {
 
 // A dirty trick to generate template specialization tag.
 #define AUTO_TAG_ID __LINE__
@@ -167,7 +167,7 @@ template<typename T>/* */
 requires ValidCuVariable<T>
 T variable{};
 
-} // end of namespace atc::cu
+} // end of namespace vc::cu
 
 namespace io {
 
@@ -397,7 +397,7 @@ using UnitVoltageMonitor
 using Watchdog
 = IoVariable<AUTO_TAG_ID, Bit>;
 
-} // end of namespace atc::io::output
+} // end of namespace vc::io::output
 
 namespace input {
 
@@ -705,16 +705,16 @@ requires ValidIndex<_I, cu::detector::max_vehicle_detectors>
 using VehicleDetReset
 = IoVariable<AUTO_TAG_ID, Bit, _I>;
 
-} // end of namespace atc::io::input
+} // end of namespace vc::io::input
 
 namespace biu {
 
 constexpr Size max_det_bius{8};
 constexpr Size max_tf_bius{8};
 
-} // end of namespace atc::io::biu
+} // end of namespace vc::io::biu
 
-} // end of namespace atc::io
+} // end of namespace vc::io
 
 namespace mmu {
 
@@ -854,7 +854,7 @@ template<typename T>/* */
 requires ValidMmuVariable<T>
 T variable{};
 
-} // end of namespace atc::mmu
+} // end of namespace vc::mmu
 
 namespace broadcast {
 
@@ -1842,7 +1842,7 @@ std::tuple<bool, std::span<Byte>> Dispatch(std::span<const Byte> a_data_in)
   }
 }
 
-} // end of namespace atc::serialframe
+} // end of namespace vc::serialframe
 
 
 
