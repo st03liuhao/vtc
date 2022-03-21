@@ -152,23 +152,23 @@ concept is_cu_variable
 = std::is_same_v<typename T::type, ControllerUnitVariableType>;
 
 template<tag_t, typename ValueT, index_t I = 0>
-struct CUVariable : Variable<ValueT, I>
+struct ControllerUnitVariable : Variable<ValueT, I>
 {
   using type = ControllerUnitVariableType;
 
-  CUVariable() = default;
-  CUVariable(CUVariable &) = delete;
-  CUVariable(CUVariable &&) = delete;
-  CUVariable &operator=(CUVariable &) = delete;
-  CUVariable &operator=(CUVariable &&) = delete;
+  ControllerUnitVariable() = default;
+  ControllerUnitVariable(ControllerUnitVariable &) = delete;
+  ControllerUnitVariable(ControllerUnitVariable &&) = delete;
+  ControllerUnitVariable &operator=(ControllerUnitVariable &) = delete;
+  ControllerUnitVariable &operator=(ControllerUnitVariable &&) = delete;
 };
 
 } // end of unnamed namespace
 
 struct Phase
 {
-  static constexpr size_t max_Phases{40};
-  static constexpr size_t max_Phase_groups{5};
+  static constexpr size_t max_phases{40};
+  static constexpr size_t max_phase_groups{5};
 };
 
 struct Detector
@@ -187,14 +187,14 @@ struct Ring
 
 struct Channel
 {
-  static constexpr size_t max_Channels{32};
+  static constexpr size_t max_channels{32};
   static constexpr size_t max_Channel_status_groups{4};
 };
 
 struct Overlap
 {
-  static constexpr size_t max_Overlaps{32};
-  static constexpr size_t max_Overlap_status_groups{4};
+  static constexpr size_t max_overlaps{32};
+  static constexpr size_t max_overlap_status_groups{4};
 };
 
 struct Preempt
@@ -283,17 +283,17 @@ using AuxFunctionState
 = IOVariable<AUTO_TAG_ID, Bit>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelGreenWalkDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelRedDoNotWalkDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelYellowPedClearDriver
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -315,92 +315,92 @@ using NotActive
 = IOVariable<AUTO_TAG_ID, Bit>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+requires (IsValidIndex(I, cu::Overlap::max_overlaps))
 using OverlapGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+requires (IsValidIndex(I, cu::Overlap::max_overlaps))
 using OverlapProtectedGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+requires (IsValidIndex(I, cu::Overlap::max_overlaps))
 using OverlapRed
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+requires (IsValidIndex(I, cu::Overlap::max_overlaps))
 using OverlapYellow
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PedCall
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseAdvWarning
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseCheck
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseDoNotWalk
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseGreen
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseNext
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseOn
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhasePedClearance
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhasePreClear
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhasePreClear2
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseRed
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseWalk
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseYellow
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -504,7 +504,7 @@ using NotActive
 = IOVariable<AUTO_TAG_ID, Bit>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Overlap::max_Overlaps))
+requires (IsValidIndex(I, cu::Overlap::max_overlaps))
 using OverlapOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -519,22 +519,22 @@ using PedDetCall
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseForceOff
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhaseHold
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhasePedOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Phase::max_Phases))
+requires (IsValidIndex(I, cu::Phase::max_phases))
 using PhasePhaseOmit
 = IOVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -812,20 +812,20 @@ struct MMUVariable : Variable<ValueT, I>
   MMUVariable &operator=(MMUVariable &&) = delete;
 };
 
-}
+} // end of unnamed namespace
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelGreenWalkStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelRedDoNotWalkStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelYellowPedClearStatus
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -878,7 +878,7 @@ using FYAFlashRateFailure
 = MMUVariable<AUTO_TAG_ID, Bit>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using MinimumYellowChangeDisable
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -904,22 +904,22 @@ using CVMFaultMonitorLatch
     index = left-hand-side channel as high-byte, right-hand-size channel as low-byte
  */
 template<Byte Ix, Byte Iy>/* */
-requires (IsValidIndex(Ix, cu::Channel::max_Channels) && IsValidIndex(Iy, cu::Channel::max_Channels))
+requires (IsValidIndex(Ix, cu::Channel::max_channels) && IsValidIndex(Iy, cu::Channel::max_channels))
 using ChannelCompatibilityStatus
 = MMUVariable<AUTO_TAG_ID, Bit, (Ix << 8) | Iy>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu/* */::Channel::max_Channels))
+requires (IsValidIndex(I, cu/* */::Channel::max_channels))
 using ChannelGreenWalkDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelRedDoNotWalkDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
 template<index_t I>/* */
-requires (IsValidIndex(I, cu::Channel::max_Channels))
+requires (IsValidIndex(I, cu::Channel::max_channels))
 using ChannelYellowPedClearDriver
 = MMUVariable<AUTO_TAG_ID, Bit, I>;
 
@@ -1837,8 +1837,10 @@ static std::array<Byte, max_sdlc_frame_bytesize> buffer = {0};
 
 } // end of unnamed namespace
 
+std::function<void(Byte)> OnCommandFrameReceipt{nullptr};
+
 template<int I = 0>
-std::tuple<bool, std::span<Byte>> Dispatch(std::span<const Byte> a_data_in, std::function<void(Byte)> a_on_command = nullptr)
+std::tuple<bool, std::span<Byte>> Dispatch(std::span<const Byte> a_data_in)
 {
   if constexpr (I < frame_maps_size) {
     auto &cmd_frame = std::get<0>(std::get<I>(frame_maps));
@@ -1847,8 +1849,8 @@ std::tuple<bool, std::span<Byte>> Dispatch(std::span<const Byte> a_data_in, std:
     if (cmd_frame.id == a_data_in[2]) {
       cmd_frame << a_data_in;
 
-      if (a_on_command) {
-        a_on_command(cmd_frame.id);
+      if (OnCommandFrameReceipt) {
+        OnCommandFrameReceipt(cmd_frame.id);
       }
 
       res_frame >> buffer; // Note - the buffer will be emptied at the beginning of inside >>().
