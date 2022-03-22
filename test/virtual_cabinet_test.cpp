@@ -133,8 +133,8 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
   CHECK(broadcast::variable<CuReportedMinutes>.value == 32);
   CHECK(broadcast::variable<CuReportedSeconds>.value == 0);
   CHECK(broadcast::variable<CuReportedTenthsOfSeconds>.value == 0);
-  CHECK(broadcast::variable<CuReportedTFBIUPresence<1>>.value == Bit::On);
-  CHECK(broadcast::variable<CuReportedDETBIUPresence<2>>.value == Bit::On);
+  CHECK(broadcast::variable<CuReportedTfBiuPresence<1>>.value == Bit::On);
+  CHECK(broadcast::variable<CuReportedDrBiuPresence<2>>.value == Bit::On);
 }
 
 TEST_CASE("Two channel IDs can be encoded")

@@ -169,6 +169,37 @@ T variable{};
 
 } // end of namespace vc::cu
 
+namespace biu {
+
+constexpr Size max_det_bius{8};
+constexpr Size max_tf_bius{8};
+
+struct BiuVariableType
+{
+};
+
+template<typename T>
+concept ValidBiuVariable
+= std::is_same_v<typename T::type, BiuVariableType>;
+
+template<Tag, typename ValueT, Index _I = 0>
+struct BiuVariable : Variable<ValueT, _I>
+{
+  using type = BiuVariableType;
+
+  BiuVariable() = default;
+  BiuVariable(BiuVariable &) = delete;
+  BiuVariable(BiuVariable &&) = delete;
+  BiuVariable &operator=(BiuVariable &) = delete;
+  BiuVariable &operator=(BiuVariable &&) = delete;
+};
+
+template<typename T>/* */
+requires ValidBiuVariable<T>
+T variable{};
+
+} // end of namespace vc::biu
+
 namespace io {
 
 struct IoVariableType
@@ -221,10 +252,10 @@ using ChannelYellowPedClearDriver
 using CustomAlarm
 = IoVariable<AUTO_TAG_ID, Bit>;
 
-template<Index _I>/* */
-requires (_I >= 1)
+template<Index _I>/* _Ix - DET BIU# */
+requires ValidIndex<_I, biu::max_det_bius>
 using DetectorReset
-= IoVariable<AUTO_TAG_ID, Bit, _I>;
+= IoVariable<AUTO_TAG_ID, Byte, _I>;
 
 using FlashState
 = IoVariable<AUTO_TAG_ID, Bit>;
@@ -713,13 +744,6 @@ using VehicleDetReset
 
 } // end of namespace vc::io::input
 
-namespace biu {
-
-constexpr Size max_det_bius{8};
-constexpr Size max_tf_bius{8};
-
-} // end of namespace vc::io::biu
-
 } // end of namespace vc::io
 
 namespace mmu {
@@ -906,13 +930,13 @@ using CuReportedTenthsOfSeconds
 = BroadcastVariable<AUTO_TAG_ID, Byte>;
 
 template<Index _I>/* */
-requires ValidIndex<_I, io::biu::max_tf_bius>
-using CuReportedTFBIUPresence
+requires ValidIndex<_I, biu::max_tf_bius>
+using CuReportedTfBiuPresence
 = BroadcastVariable<AUTO_TAG_ID, Bit, _I>;
 
 template<Index _I>/* */
-requires ValidIndex<_I, io::biu::max_det_bius>
-using CuReportedDETBIUPresence
+requires ValidIndex<_I, biu::max_det_bius>
+using CuReportedDrBiuPresence
 = BroadcastVariable<AUTO_TAG_ID, Bit, _I>;
 
 template<typename T>/* */
@@ -947,6 +971,13 @@ requires io::ValidIoVariable<T>
 constexpr T &variable()
 {
   return io::variable<T>;
+}
+
+template<typename T>
+requires biu::ValidBiuVariable<T>
+constexpr T &variable()
+{
+  return biu::variable<T>;
 }
 
 namespace serial {
@@ -1152,6 +1183,9 @@ struct FrameType
 {
 };
 
+// ----------------------------------------------
+// Frame Type 0
+// ----------------------------------------------
 /* MMU LoadSwitchDriverFrame (TYPE 0 Command Frame)
    For each channel, there are two bits for dimming purpose
    ----------------------------------------------------
@@ -1304,20 +1338,9 @@ struct FrameType<0>
   using type = LoadSwitchDriversFrame;
 };
 
-using LoadSwitchDriversAckFrame
-= Frame<
-    0x10, // MMU Address = 16
-    0x80, // FrameID = 128, Type 0 ACK
-    3,
-    SSG_ResponseFrameType
->;
-
-template<>
-struct FrameType<128>
-{
-  using type = LoadSwitchDriversAckFrame;
-};
-
+// ----------------------------------------------
+// Frame Type 1
+// ----------------------------------------------
 using MMUInputStatusRequestFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1332,6 +1355,598 @@ struct FrameType<1>
   using type = MMUInputStatusRequestFrame;
 };
 
+// ----------------------------------------------
+// Frame Type 3
+// ----------------------------------------------
+
+using MMUProgrammingRequestFrame
+= Frame<
+    0x10, // MMU Address = 16
+    0x03, // FrameID = 3
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<3>
+{
+  using type = MMUProgrammingRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 9
+// ----------------------------------------------
+using DateTimeBroadcastFrame
+= Frame<
+    0xFF, // Broadcast Address = 255
+    0x09, // FrameID = 9
+    12,   // 12 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0xFF for broadcast message
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x09 for Type 9 Command Frame
+    // ----------------------------------------------
+    // Byte 3~9: Mon/Day/Year/Hour/Min/Sec/TenthSec
+    //-----------------------------------------------
+    FrameByte<broadcast::CuReportedMonth, 3>,
+    FrameByte<broadcast::CuReportedDay, 4>,
+    FrameByte<broadcast::CuReportedYear, 5>,
+    FrameByte<broadcast::CuReportedHour, 6>,
+    FrameByte<broadcast::CuReportedMinutes, 7>,
+    FrameByte<broadcast::CuReportedSeconds, 8>,
+    FrameByte<broadcast::CuReportedTenthsOfSeconds, 9>,
+    //-----------------------------------------------
+    // Byte 10 - TF BIU # 1 ~ 8 Present State
+    //-----------------------------------------------
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x01>, 0x50>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x02>, 0x51>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x03>, 0x52>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x04>, 0x53>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x05>, 0x54>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x06>, 0x55>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x07>, 0x56>,
+    FrameBit<broadcast::CuReportedTfBiuPresence<0x08>, 0x57>,
+    //-----------------------------------------------
+    // Byte 11 - DET BIU # 1 ~ 8 Present State
+    //-----------------------------------------------
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x01>, 0x58>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x02>, 0x59>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x03>, 0x5A>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x04>, 0x5B>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x05>, 0x5C>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x06>, 0x5D>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x07>, 0x5E>,
+    FrameBit<broadcast::CuReportedDrBiuPresence<0x08>, 0x5F>
+>;
+
+template<>
+struct FrameType<9>
+{
+  using type = DateTimeBroadcastFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 10
+// ----------------------------------------------
+using TfBiu01_OutputsInputsRequestFrame
+= Frame<
+    0x00, // TF BIU#1 Address = 0
+    0x0A, // FrameID = 10
+    11,   // 11 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 3
+    // ---------------------------------------------- 
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<1>, 0x18>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<1>, 0x19>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<1>, 0x1A>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<1>, 0x1B>,
+    FrameBit<io::output::ChannelGreenWalkDriver<1>, 0x1C>,
+    FrameBit<io::output::ChannelGreenWalkDriver<1>, 0x1D>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<2>, 0x1E>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<2>, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelYellowPedClearDriver<2>, 0x20>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<2>, 0x21>,
+    FrameBit<io::output::ChannelGreenWalkDriver<2>, 0x22>,
+    FrameBit<io::output::ChannelGreenWalkDriver<2>, 0x23>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<3>, 0x24>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<3>, 0x25>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<3>, 0x26>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<3>, 0x27>,
+    // ----------------------------------------------
+    // Byte 5
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelGreenWalkDriver<3>, 0x28>,
+    FrameBit<io::output::ChannelGreenWalkDriver<3>, 0x29>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<4>, 0x2A>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<4>, 0x2B>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<4>, 0x2C>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<4>, 0x2D>,
+    FrameBit<io::output::ChannelGreenWalkDriver<4>, 0x2E>,
+    FrameBit<io::output::ChannelGreenWalkDriver<4>, 0x2F>,
+    // ----------------------------------------------
+    // Byte 6
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<5>, 0x30>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<5>, 0x31>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<5>, 0x32>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<5>, 0x33>,
+    FrameBit<io::output::ChannelGreenWalkDriver<5>, 0x34>,
+    FrameBit<io::output::ChannelGreenWalkDriver<5>, 0x35>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<6>, 0x36>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<6>, 0x37>,
+    // ----------------------------------------------
+    // Byte 7
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelYellowPedClearDriver<6>, 0x38>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<6>, 0x39>,
+    FrameBit<io::output::ChannelGreenWalkDriver<6>, 0x3A>,
+    FrameBit<io::output::ChannelGreenWalkDriver<6>, 0x3B>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<7>, 0x3C>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<7>, 0x3D>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<7>, 0x3E>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<7>, 0x3F>,
+    // ----------------------------------------------
+    // Byte 8
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelGreenWalkDriver<7>, 0x40>,
+    FrameBit<io::output::ChannelGreenWalkDriver<7>, 0x41>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<8>, 0x42>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<8>, 0x43>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<8>, 0x44>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<8>, 0x45>,
+    FrameBit<io::output::ChannelGreenWalkDriver<8>, 0x46>,
+    FrameBit<io::output::ChannelGreenWalkDriver<8>, 0x47>,
+    // ----------------------------------------------
+    // Byte 9
+    // ----------------------------------------------
+    FrameBit<io::output::UnitTBCAux_1, 0x48>,
+    FrameBit<io::output::UnitTBCAux_2, 0x49>,
+    FrameBit<io::output::PreemptStatus<1>, 0x4A>,
+    FrameBit<io::output::PreemptStatus<2>, 0x4B>
+    // Bit 0x4C - 0x4F designated as inputs, should be driven to logic 0 all times.
+    // ----------------------------------------------
+    // Byte 10
+    // ----------------------------------------------
+    // Bit 0x50 - 0x56 designated as inputs, should be driven to logic 0 all times.
+    // Bit 0x57 Reserved.
+>;
+
+template<>
+struct FrameType<10>
+{
+  using type = TfBiu01_OutputsInputsRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 11
+// ----------------------------------------------
+using TfBiu02_OutputsInputsRequestFrame
+= Frame<
+    0x01, // TF BIU#2 Address = 1
+    0x0B, // FrameID = 11
+    11,   // 11 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 3
+    // ---------------------------------------------- 
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<9>, 0x18>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<9>, 0x19>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<9>, 0x1A>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<9>, 0x1B>,
+    FrameBit<io::output::ChannelGreenWalkDriver<9>, 0x1C>,
+    FrameBit<io::output::ChannelGreenWalkDriver<9>, 0x1D>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<10>, 0x1E>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<10>, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelYellowPedClearDriver<10>, 0x20>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<10>, 0x21>,
+    FrameBit<io::output::ChannelGreenWalkDriver<10>, 0x22>,
+    FrameBit<io::output::ChannelGreenWalkDriver<10>, 0x23>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<11>, 0x24>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<11>, 0x25>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<11>, 0x26>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<11>, 0x27>,
+    // ----------------------------------------------
+    // Byte 5
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelGreenWalkDriver<11>, 0x28>,
+    FrameBit<io::output::ChannelGreenWalkDriver<11>, 0x29>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<12>, 0x2A>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<12>, 0x2B>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<12>, 0x2C>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<12>, 0x2D>,
+    FrameBit<io::output::ChannelGreenWalkDriver<12>, 0x2E>,
+    FrameBit<io::output::ChannelGreenWalkDriver<12>, 0x2F>,
+    // ----------------------------------------------
+    // Byte 6
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<13>, 0x30>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<13>, 0x31>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<13>, 0x32>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<13>, 0x33>,
+    FrameBit<io::output::ChannelGreenWalkDriver<13>, 0x34>,
+    FrameBit<io::output::ChannelGreenWalkDriver<13>, 0x35>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<14>, 0x36>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<14>, 0x37>,
+    // ----------------------------------------------
+    // Byte 7
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelYellowPedClearDriver<14>, 0x38>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<14>, 0x39>,
+    FrameBit<io::output::ChannelGreenWalkDriver<14>, 0x3A>,
+    FrameBit<io::output::ChannelGreenWalkDriver<14>, 0x3B>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<15>, 0x3C>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<15>, 0x3D>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<15>, 0x3E>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<15>, 0x3F>,
+    // ----------------------------------------------
+    // Byte 8
+    // ----------------------------------------------
+    FrameBit<io::output::ChannelGreenWalkDriver<15>, 0x40>,
+    FrameBit<io::output::ChannelGreenWalkDriver<15>, 0x41>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<16>, 0x42>,
+    FrameBit<io::output::ChannelRedDoNotWalkDriver<16>, 0x43>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<16>, 0x44>,
+    FrameBit<io::output::ChannelYellowPedClearDriver<16>, 0x45>,
+    FrameBit<io::output::ChannelGreenWalkDriver<16>, 0x46>,
+    FrameBit<io::output::ChannelGreenWalkDriver<16>, 0x47>,
+    // ----------------------------------------------
+    // Byte 9
+    // ----------------------------------------------
+    FrameBit<io::output::UnitTBCAux_3, 0x48>,
+    FrameBit<io::output::UnitFreeCoordStatus, 0x49>,
+    FrameBit<io::output::PreemptStatus<3>, 0x4A>,
+    FrameBit<io::output::PreemptStatus<4>, 0x4B>,
+    FrameBit<io::output::PreemptStatus<5>, 0x4C>,
+    FrameBit<io::output::PreemptStatus<6>, 0x4D>
+    // Bit 0x4E - 0x4F designated as inputs, should be driven to logic 0 all times.
+    // ----------------------------------------------
+    // Byte 10
+    // ----------------------------------------------
+    // Bit 0x50 - 0x52 designated as inputs, should be driven to logic 0 all times.
+    // Bit 0x53 - 0x56 Spare, vendor specific (logic 0 or 1).
+    // Bit 0x57 - Reserved.
+>;
+
+template<>
+struct FrameType<11>
+{
+  using type = TfBiu02_OutputsInputsRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 12
+// ----------------------------------------------
+using TfBiu03_OutputsInputsRequestFrame
+= Frame<
+    0x02, // TF BIU#1 Address = 2
+    0x0C, // FrameID = 12
+    8,    // 8 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 3
+    // ----------------------------------------------
+    FrameBit<io::output::UnitTimingPlanA, 0x18>,
+    FrameBit<io::output::UnitTimingPlanB, 0x19>,
+    FrameBit<io::output::UnitTimingPlanC, 0x1A>,
+    FrameBit<io::output::UnitTimingPlanD, 0x1B>,
+    FrameBit<io::output::UnitOffset_1, 0x1C>,
+    FrameBit<io::output::UnitOffset_2, 0x1D>,
+    FrameBit<io::output::UnitOffset_3, 0x1E>,
+    FrameBit<io::output::UnitAutomaticFlash, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4
+    // ----------------------------------------------
+    FrameBit<io::output::SpecialFunction<1>, 0x20>,
+    FrameBit<io::output::SpecialFunction<2>, 0x21>,
+    FrameBit<io::output::SpecialFunction<3>, 0x22>,
+    FrameBit<io::output::SpecialFunction<4>, 0x23>,
+    // 0x24 - Reserved.
+    // 0x25 - Reserved.
+    // 0x26 - Reserved.
+    // 0x27 - Reserved.
+    // ----------------------------------------------
+    // Byte 5
+    // ----------------------------------------------
+    FrameBit<io::output::StatusBitA_Ring_1, 0x28>,
+    FrameBit<io::output::StatusBitB_Ring_1, 0x29>,
+    FrameBit<io::output::StatusBitC_Ring_1, 0x2A>,
+    FrameBit<io::output::StatusBitA_Ring_2, 0x2B>,
+    FrameBit<io::output::StatusBitB_Ring_2, 0x2C>,
+    FrameBit<io::output::StatusBitC_Ring_2, 0x2D>
+    // 0x2E - Designated Input
+    // 0x2F - Designated Input
+    // ----------------------------------------------
+    // Byte 6
+    // ----------------------------------------------
+    // 0x30 - Designated Input
+    // 0x31 - Designated Input
+    // 0x32 - Designated Input
+    // 0x33 - Designated Input
+    // 0x34 - Designated Input
+    // 0x35 - Designated Input
+    // 0x36 - Designated Input
+    // 0x37 - Designated Input
+    // ----------------------------------------------
+    // Byte 7
+    // ----------------------------------------------
+    // 0x38 - Designated Input
+    // 0x39 - Designated Input
+    // 0x3A - Designated Input
+    // 0x3B - Designated Input
+    // 0x3C - Designated Input
+    // 0x3D - Designated Input
+    // 0x3E - Designated Input
+    // 0x3F - Designated Input
+>;
+
+template<>
+struct FrameType<12>
+{
+  using type = TfBiu03_OutputsInputsRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 13
+// ----------------------------------------------
+using TfBiu04_OutputsInputsRequestFrame
+= Frame<
+    0x03, // TF BIU#1 Address = 3
+    0x0D, // FrameID = 13
+    8,    // 8 Bytes
+    SSR_CommandFrameType,
+    // ----------------------------------------------
+    // Byte 3
+    // ----------------------------------------------
+    FrameBit<io::output::PhaseOn<1>, 0x18>,
+    FrameBit<io::output::PhaseOn<2>, 0x19>,
+    FrameBit<io::output::PhaseOn<3>, 0x1A>,
+    FrameBit<io::output::PhaseOn<4>, 0x1B>,
+    FrameBit<io::output::PhaseOn<5>, 0x1C>,
+    FrameBit<io::output::PhaseOn<6>, 0x1D>,
+    FrameBit<io::output::PhaseOn<7>, 0x1E>,
+    FrameBit<io::output::PhaseOn<8>, 0x1F>,
+    // ----------------------------------------------
+    // Byte 4
+    // ----------------------------------------------
+    FrameBit<io::output::PhaseNext<1>, 0x20>,
+    FrameBit<io::output::PhaseNext<2>, 0x21>,
+    FrameBit<io::output::PhaseNext<3>, 0x22>,
+    FrameBit<io::output::PhaseNext<4>, 0x23>,
+    FrameBit<io::output::PhaseNext<5>, 0x24>,
+    FrameBit<io::output::PhaseNext<6>, 0x25>,
+    FrameBit<io::output::PhaseNext<7>, 0x26>,
+    // 0x27 - Reserved.
+    // ----------------------------------------------
+    // Byte 5
+    // ----------------------------------------------
+    FrameBit<io::output::PhaseNext<8>, 0x28>,
+    FrameBit<io::output::PhaseCheck<1>, 0x29>,
+    FrameBit<io::output::PhaseCheck<2>, 0x2A>,
+    FrameBit<io::output::PhaseCheck<3>, 0x2B>,
+    FrameBit<io::output::PhaseCheck<4>, 0x2C>,
+    FrameBit<io::output::PhaseCheck<5>, 0x2D>,
+    FrameBit<io::output::PhaseCheck<6>, 0x2E>,
+    FrameBit<io::output::PhaseCheck<7>, 0x2F>,
+    // ----------------------------------------------
+    // Byte 6
+    // ----------------------------------------------
+    FrameBit<io::output::PhaseCheck<8>, 0x30>
+    // 0x31 - Designated Input
+    // 0x32 - Designated Input
+    // 0x33 - Designated Input
+    // 0x34 - Designated Input
+    // 0x35 - Designated Input
+    // 0x36 - Spare
+    // 0x37 - Spare
+    // ----------------------------------------------
+    // Byte 7
+    // ----------------------------------------------
+    // 0x38 - Spare
+    // 0x39 - Spare
+    // 0x3A - Spare
+    // 0x3B - Designated Input
+    // 0x3C - Designated Input
+    // 0x3D - Designated Input
+    // 0x3E - Designated Input
+    // 0x3F - Designated Input
+>;
+
+template<>
+struct FrameType<13>
+{
+  using type = TfBiu04_OutputsInputsRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 18
+// ----------------------------------------------
+using OutputTransferFrame
+= Frame<
+    0xFF, // Broadcast address 255
+    0x12, // FrameID = 18
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<18>
+{
+  using type = OutputTransferFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 20
+// ----------------------------------------------
+using DrBiu01_CallRequestFrame
+= Frame<
+    0x08, // DET BIU#1 Address = 8
+    0x14, // FrameID = 20
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<20>
+{
+  using type = DrBiu01_CallRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 21
+// ----------------------------------------------
+using DrBiu02_CallRequestFrame
+= Frame<
+    0x09, // DET BIU#2 Address = 9
+    0x15, // FrameID = 21
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<21>
+{
+  using type = DrBiu02_CallRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 22
+// ----------------------------------------------
+using DrBiu03_CallRequestFrame
+= Frame<
+    0x0A, // DET BIU#3 Address = 10
+    0x16, // FrameID = 22
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<22>
+{
+  using type = DrBiu03_CallRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 23
+// ----------------------------------------------
+using DrBiu04_CallRequestFrame
+= Frame<
+    0x0B, // DET BIU#3 Address = 1
+    0x17, // FrameID = 23
+    3,
+    SSR_CommandFrameType
+>;
+
+template<>
+struct FrameType<23>
+{
+  using type = DrBiu04_CallRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 24
+// ----------------------------------------------
+using DrBiu01_ResetDiagnosticRequestFrame
+= Frame<
+    0x08, // DET BIU#1 Address = 8
+    0x18, // FrameID = 24
+    4,
+    SSR_CommandFrameType,
+    FrameByte<io::output::DetectorReset<1>, 3>
+>;
+
+template<>
+struct FrameType<24>
+{
+  using type = DrBiu01_ResetDiagnosticRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 25
+// ----------------------------------------------
+using DrBiu02_ResetDiagnosticRequestFrame
+= Frame<
+    0x09, // DET BIU#2 Address = 9
+    0x19, // FrameID = 25
+    4,
+    SSR_CommandFrameType,
+    FrameByte<io::output::DetectorReset<2>, 3>
+>;
+
+template<>
+struct FrameType<25>
+{
+  using type = DrBiu02_ResetDiagnosticRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 26
+// ----------------------------------------------
+using DrBiu03_ResetDiagnosticRequestFrame
+= Frame<
+    0x0A, // DET BIU#3 Address = 10
+    0x1A, // FrameID = 26
+    4,
+    SSR_CommandFrameType,
+    FrameByte<io::output::DetectorReset<3>, 3>
+>;
+
+template<>
+struct FrameType<26>
+{
+  using type = DrBiu03_ResetDiagnosticRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 27
+// ----------------------------------------------
+using DrBiu04_ResetDiagnosticRequestFrame
+= Frame<
+    0x0B, // DET BIU#3 Address = 1
+    0x1B, // FrameID = 27
+    4,
+    SSR_CommandFrameType,
+    FrameByte<io::output::DetectorReset<4>, 3>
+>;
+
+template<>
+struct FrameType<27>
+{
+  using type = DrBiu04_ResetDiagnosticRequestFrame;
+};
+
+// ----------------------------------------------
+// Frame 30, 40, 42, 43 - nobody cares; we neither.
+// ----------------------------------------------
+
+
+// ----------------------------------------------
+// Frame Type 128
+// ----------------------------------------------
+using LoadSwitchDriversAckFrame
+= Frame<
+    0x10, // MMU Address = 16
+    0x80, // FrameID = 128, Type 0 ACK
+    3,
+    SSG_ResponseFrameType
+>;
+
+template<>
+struct FrameType<128>
+{
+  using type = LoadSwitchDriversAckFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 129
+// ----------------------------------------------
 using MMUInputStatusRequestAckFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1460,20 +2075,9 @@ struct FrameType<129>
   using type = MMUInputStatusRequestAckFrame;
 };
 
-using MMUProgrammingRequestFrame
-= Frame<
-    0x10, // MMU Address = 16
-    0x03, // FrameID = 3
-    3,
-    SSR_CommandFrameType
->;
-
-template<>
-struct FrameType<3>
-{
-  using type = MMUProgrammingRequestFrame;
-};
-
+// ----------------------------------------------
+// Frame Type 131
+// ----------------------------------------------
 using MMUProgrammingRequestAckFrame
 = Frame<
     0x10, // MMU Address = 16
@@ -1687,7 +2291,7 @@ using MMUProgrammingRequestAckFrame
     // ----------------------------------------------
     // ----------------------------------------------
     // Byte 22 - Reserved
-    // ----------------------------------------------      
+    // ----------------------------------------------
 >;
 
 template<>
@@ -1696,396 +2300,309 @@ struct FrameType<131>
   using type = MMUProgrammingRequestAckFrame;
 };
 
-using DateTimeBroadcastFrame
-= Frame<
-    0xFF, // Broadcast Address = 255
-    0x09, // FrameID = 9
-    12,   // 12 Bytes
-    SSR_CommandFrameType,
-    // ----------------------------------------------
-    // Byte 0 - Address, 0xFF for broadcast message
-    // Byte 1 - Control, always 0x83
-    // Byte 2 - FrameID, 0x09 for Type 9 Command Frame
-    // ----------------------------------------------
-    // Byte 3~9: Mon/Day/Year/Hour/Min/Sec/TenthSec
-    //-----------------------------------------------
-    FrameByte<broadcast::CuReportedMonth, 3>,
-    FrameByte<broadcast::CuReportedDay, 4>,
-    FrameByte<broadcast::CuReportedYear, 5>,
-    FrameByte<broadcast::CuReportedHour, 6>,
-    FrameByte<broadcast::CuReportedMinutes, 7>,
-    FrameByte<broadcast::CuReportedSeconds, 8>,
-    FrameByte<broadcast::CuReportedTenthsOfSeconds, 9>,
-    //-----------------------------------------------
-    // Byte 10 - TF BIU # 1 ~ 8 Present State
-    //-----------------------------------------------
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x01>, 0x50>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x02>, 0x51>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x03>, 0x52>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x04>, 0x53>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x05>, 0x54>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x06>, 0x55>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x07>, 0x56>,
-    FrameBit<broadcast::CuReportedTFBIUPresence<0x08>, 0x57>,
-    //-----------------------------------------------
-    // Byte 11 - DET BIU # 1 ~ 8 Present State
-    //-----------------------------------------------
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x01>, 0x58>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x02>, 0x59>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x03>, 0x5A>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x04>, 0x5B>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x05>, 0x5C>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x06>, 0x5D>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x07>, 0x5E>,
-    FrameBit<broadcast::CuReportedDETBIUPresence<0x08>, 0x5F>
->;
-
-template<>
-struct FrameType<9>
-{
-  using type = DateTimeBroadcastFrame;
-};
-
-using IoRequestTfBiu_1
+// ----------------------------------------------
+// Frame Type 138
+// ----------------------------------------------
+using TfBiu01_InputFrame
 = Frame<
     0x00, // TF BIU#1 Address = 0
-    0x0A, // FrameID = 10
-    11,   // 11 Bytes
-    SSR_CommandFrameType,
+    0x8A, // FrameID = 138
+    8,
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x00 for TF BIU#1
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x8A for Type 138 Response Frame
     // ----------------------------------------------
     // Byte 3
-    // ---------------------------------------------- 
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<1>, 0x18>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<1>, 0x19>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<1>, 0x1A>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<1>, 0x1B>,
-    FrameBit<io::output::ChannelGreenWalkDriver<1>, 0x1C>,
-    FrameBit<io::output::ChannelGreenWalkDriver<1>, 0x1D>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<2>, 0x1E>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<2>, 0x1F>,
+    //-----------------------------------------------
+    // 0x18 - Designated Output
+    // 0x19 - Designated Output
+    // 0x1A - Designated Output
+    // 0x1B - Designated Output
+    // 0x1C - Designated Output
+    // 0x1D - Designated Output
+    // 0x1E - Designated Output
+    // 0x1F - Designated Output
     // ----------------------------------------------
     // Byte 4
     // ----------------------------------------------
-    FrameBit<io::output::ChannelYellowPedClearDriver<2>, 0x20>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<2>, 0x21>,
-    FrameBit<io::output::ChannelGreenWalkDriver<2>, 0x22>,
-    FrameBit<io::output::ChannelGreenWalkDriver<2>, 0x23>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<3>, 0x24>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<3>, 0x25>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<3>, 0x26>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<3>, 0x27>,
+    // 0x20 - Designated Output
+    // 0x21 - Designated Output
+    // 0x22 - Designated Output
+    // 0x23 - Designated Output
+    // 0x24 - Designated Output
+    FrameBit<io::input::PreemptInput<1>, 0x25>,
+    FrameBit<io::input::PreemptInput<2>, 0x26>,
+    FrameBit<io::input::UnitTestInputA, 0x27>,
     // ----------------------------------------------
     // Byte 5
     // ----------------------------------------------
-    FrameBit<io::output::ChannelGreenWalkDriver<3>, 0x28>,
-    FrameBit<io::output::ChannelGreenWalkDriver<3>, 0x29>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<4>, 0x2A>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<4>, 0x2B>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<4>, 0x2C>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<4>, 0x2D>,
-    FrameBit<io::output::ChannelGreenWalkDriver<4>, 0x2E>,
-    FrameBit<io::output::ChannelGreenWalkDriver<4>, 0x2F>,
+    FrameBit<io::input::UnitTestInputB, 0x28>,
+    FrameBit<io::input::UnitAutomaticFlash, 0x29>,
+    FrameBit<io::input::UnitDimming, 0x2A>,
+    FrameBit<io::input::UnitManualControlEnable, 0x2B>,
+    FrameBit<io::input::UnitIntervalAdvance, 0x2C>,
+    FrameBit<io::input::UnitExternalMinRecall, 0x2D>,
+    FrameBit<io::input::UnitExternalStart, 0x2E>,
+    FrameBit<io::input::UnitTBCOnline, 0x2F>,
     // ----------------------------------------------
     // Byte 6
     // ----------------------------------------------
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<5>, 0x30>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<5>, 0x31>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<5>, 0x32>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<5>, 0x33>,
-    FrameBit<io::output::ChannelGreenWalkDriver<5>, 0x34>,
-    FrameBit<io::output::ChannelGreenWalkDriver<5>, 0x35>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<6>, 0x36>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<6>, 0x37>,
+    FrameBit<io::input::RingStopTiming<1>, 0x30>,
+    FrameBit<io::input::RingStopTiming<2>, 0x31>,
+    FrameBit<io::input::RingMax2Selection<1>, 0x32>,
+    FrameBit<io::input::RingMax2Selection<2>, 0x33>,
+    FrameBit<io::input::RingForceOff<1>, 0x34>,
+    FrameBit<io::input::RingForceOff<2>, 0x35>,
+    FrameBit<io::input::UnitCallToNonActuated_1, 0x36>,
+    FrameBit<io::input::UnitWalkRestModifier, 0x37>,
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    FrameBit<io::output::ChannelYellowPedClearDriver<6>, 0x38>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<6>, 0x39>,
-    FrameBit<io::output::ChannelGreenWalkDriver<6>, 0x3A>,
-    FrameBit<io::output::ChannelGreenWalkDriver<6>, 0x3B>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<7>, 0x3C>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<7>, 0x3D>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<7>, 0x3E>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<7>, 0x3F>,
-    // ----------------------------------------------
-    // Byte 8
-    // ----------------------------------------------
-    FrameBit<io::output::ChannelGreenWalkDriver<7>, 0x40>,
-    FrameBit<io::output::ChannelGreenWalkDriver<7>, 0x41>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<8>, 0x42>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<8>, 0x43>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<8>, 0x44>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<8>, 0x45>,
-    FrameBit<io::output::ChannelGreenWalkDriver<8>, 0x46>,
-    FrameBit<io::output::ChannelGreenWalkDriver<8>, 0x47>,
-    // ----------------------------------------------
-    // Byte 9
-    // ----------------------------------------------
-    FrameBit<io::output::UnitTBCAux_1, 0x48>,
-    FrameBit<io::output::UnitTBCAux_2, 0x49>,
-    FrameBit<io::output::PreemptStatus<1>, 0x4A>,
-    FrameBit<io::output::PreemptStatus<2>, 0x4B>
-    // Bit 0x4C - 0x4F designated as inputs, should be driven to logic 0 all times.
-    // ----------------------------------------------
-    // Byte 10
-    // ----------------------------------------------
-    // Bit 0x50 - 0x56 designated as inputs, should be driven to logic 0 all times.
-    // Bit 0x57 Reserved.
+    FrameBit<io::input::PedDetCall<1>, 0x38>,
+    FrameBit<io::input::PedDetCall<2>, 0x39>,
+    FrameBit<io::input::PedDetCall<3>, 0x3A>,
+    FrameBit<io::input::PedDetCall<4>, 0x3B>
+    // 0x3C - Reserved
+    // 0x3D - Reserved
+    // 0x3E - Reserved
+    // 0x3F - Reserved
 >;
 
 template<>
-struct FrameType<10>
+struct FrameType<138>
 {
-  using type = IoRequestTfBiu_1;
+  using type = TfBiu01_InputFrame;
 };
 
-using IoRequestTfBiu_2
+// ----------------------------------------------
+// Frame Type 139
+// ----------------------------------------------
+using TfBiu02_InputFrame
 = Frame<
     0x01, // TF BIU#2 Address = 1
-    0x0B, // FrameID = 11
-    11,   // 11 Bytes
-    SSR_CommandFrameType,
+    0x8B, // FrameID = 139
+    8,
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x01 for TF BIU#2
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x8B for Type 139 Response Frame
     // ----------------------------------------------
     // Byte 3
-    // ---------------------------------------------- 
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<9>, 0x18>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<9>, 0x19>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<9>, 0x1A>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<9>, 0x1B>,
-    FrameBit<io::output::ChannelGreenWalkDriver<9>, 0x1C>,
-    FrameBit<io::output::ChannelGreenWalkDriver<9>, 0x1D>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<10>, 0x1E>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<10>, 0x1F>,
+    //-----------------------------------------------
+    // 0x18 - Designated Output
+    // 0x19 - Designated Output
+    // 0x1A - Designated Output
+    // 0x1B - Designated Output
+    // 0x1C - Designated Output
+    // 0x1D - Designated Output
+    // 0x1E - Designated Output
+    // 0x1F - Designated Output
     // ----------------------------------------------
     // Byte 4
     // ----------------------------------------------
-    FrameBit<io::output::ChannelYellowPedClearDriver<10>, 0x20>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<10>, 0x21>,
-    FrameBit<io::output::ChannelGreenWalkDriver<10>, 0x22>,
-    FrameBit<io::output::ChannelGreenWalkDriver<10>, 0x23>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<11>, 0x24>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<11>, 0x25>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<11>, 0x26>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<11>, 0x27>,
+    // 0x20 - Designated Output
+    // 0x21 - Designated Output
+    // 0x22 - Designated Output
+    // 0x23 - Designated Output
+    // 0x24 - Designated Output
+    // 0x25 - Designated Output
+    // 0x26 - Designated Output
+    FrameBit<io::input::PreemptInput<3>, 0x27>,
     // ----------------------------------------------
     // Byte 5
     // ----------------------------------------------
-    FrameBit<io::output::ChannelGreenWalkDriver<11>, 0x28>,
-    FrameBit<io::output::ChannelGreenWalkDriver<11>, 0x29>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<12>, 0x2A>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<12>, 0x2B>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<12>, 0x2C>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<12>, 0x2D>,
-    FrameBit<io::output::ChannelGreenWalkDriver<12>, 0x2E>,
-    FrameBit<io::output::ChannelGreenWalkDriver<12>, 0x2F>,
+    FrameBit<io::input::PreemptInput<4>, 0x28>,
+    FrameBit<io::input::PreemptInput<5>, 0x29>,
+    FrameBit<io::input::PreemptInput<6>, 0x2A>,
+    FrameBit<io::input::UnitCallToNonActuated_2, 0x2B>,
+    // 0x2C - Spare
+    // 0x2D - Spare
+    // 0x2E - Spare
+    // 0x2F - Spare
     // ----------------------------------------------
     // Byte 6
     // ----------------------------------------------
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<13>, 0x30>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<13>, 0x31>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<13>, 0x32>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<13>, 0x33>,
-    FrameBit<io::output::ChannelGreenWalkDriver<13>, 0x34>,
-    FrameBit<io::output::ChannelGreenWalkDriver<13>, 0x35>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<14>, 0x36>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<14>, 0x37>,
+    FrameBit<io::input::RingInhibitMaxTermination<1>, 0x30>,
+    FrameBit<io::input::RingInhibitMaxTermination<2>, 0x31>,
+    FrameBit<io::input::UnitLocalFlash, 0x32>,
+    FrameBit<io::input::UnitCMUMMUFlashStatus, 0x33>,
+    FrameBit<io::input::UnitAlarm_1, 0x34>,
+    FrameBit<io::input::UnitAlarm_2, 0x35>,
+    FrameBit<io::input::CoordFreeSwitch, 0x36>,
+    FrameBit<io::input::UnitTestInputC, 0x37>,
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    FrameBit<io::output::ChannelYellowPedClearDriver<14>, 0x38>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<14>, 0x39>,
-    FrameBit<io::output::ChannelGreenWalkDriver<14>, 0x3A>,
-    FrameBit<io::output::ChannelGreenWalkDriver<14>, 0x3B>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<15>, 0x3C>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<15>, 0x3D>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<15>, 0x3E>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<15>, 0x3F>,
-    // ----------------------------------------------
-    // Byte 8
-    // ----------------------------------------------
-    FrameBit<io::output::ChannelGreenWalkDriver<15>, 0x40>,
-    FrameBit<io::output::ChannelGreenWalkDriver<15>, 0x41>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<16>, 0x42>,
-    FrameBit<io::output::ChannelRedDoNotWalkDriver<16>, 0x43>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<16>, 0x44>,
-    FrameBit<io::output::ChannelYellowPedClearDriver<16>, 0x45>,
-    FrameBit<io::output::ChannelGreenWalkDriver<16>, 0x46>,
-    FrameBit<io::output::ChannelGreenWalkDriver<16>, 0x47>,
-    // ----------------------------------------------
-    // Byte 9
-    // ----------------------------------------------
-    FrameBit<io::output::UnitTBCAux_3, 0x48>,
-    FrameBit<io::output::UnitFreeCoordStatus, 0x49>,
-    FrameBit<io::output::PreemptStatus<3>, 0x4A>,
-    FrameBit<io::output::PreemptStatus<4>, 0x4B>,
-    FrameBit<io::output::PreemptStatus<5>, 0x4C>,
-    FrameBit<io::output::PreemptStatus<6>, 0x4D>
-    // Bit 0x4E - 0x4F designated as inputs, should be driven to logic 0 all times.
-    // ----------------------------------------------
-    // Byte 10
-    // ----------------------------------------------
-    // Bit 0x50 - 0x52 designated as inputs, should be driven to logic 0 all times.
-    // Bit 0x53 - 0x56 Spare, vendor specific (logic 0 or 1).
-    // Bit 0x57 - Reserved.
+    FrameBit<io::input::PedDetCall<5>, 0x38>,
+    FrameBit<io::input::PedDetCall<6>, 0x39>,
+    FrameBit<io::input::PedDetCall<7>, 0x3A>,
+    FrameBit<io::input::PedDetCall<8>, 0x3B>
+    // 0x3C - Reserved
+    // 0x3D - Reserved
+    // 0x3E - Reserved
+    // 0x3F - Reserved
 >;
 
 template<>
-struct FrameType<11>
+struct FrameType<139>
 {
-  using type = IoRequestTfBiu_2;
+  using type = TfBiu02_InputFrame;
 };
 
-using IoRequestTfBiu_3
+// ----------------------------------------------
+// Frame Type 140
+// ----------------------------------------------
+using TfBiu03_InputFrame
 = Frame<
-    0x02, // TF BIU#1 Address = 2
-    0x0C, // FrameID = 12
-    8,    // 8 Bytes
-    SSR_CommandFrameType,
+    0x02, // TF BIU#3 Address = 2
+    0x8C, // FrameID = 140
+    8,
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x02 for TF BIU#3
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x8C for Type 140 Response Frame
     // ----------------------------------------------
     // Byte 3
-    // ----------------------------------------------
-    FrameBit<io::output::UnitTimingPlanA, 0x18>,
-    FrameBit<io::output::UnitTimingPlanB, 0x19>,
-    FrameBit<io::output::UnitTimingPlanC, 0x1A>,
-    FrameBit<io::output::UnitTimingPlanD, 0x1B>,
-    FrameBit<io::output::UnitOffset_1, 0x1C>,
-    FrameBit<io::output::UnitOffset_2, 0x1D>,
-    FrameBit<io::output::UnitOffset_3, 0x1E>,
-    FrameBit<io::output::UnitAutomaticFlash, 0x1F>,
+    //-----------------------------------------------
+    // 0x18 - Designated Output
+    // 0x19 - Designated Output
+    // 0x1A - Designated Output
+    // 0x1B - Designated Output
+    // 0x1C - Designated Output
+    // 0x1D - Designated Output
+    FrameBit<io::input::RingRedRest<1>, 0x1E>,
+    FrameBit<io::input::RingRedRest<2>, 0x1E>,
     // ----------------------------------------------
     // Byte 4
     // ----------------------------------------------
-    FrameBit<io::output::SpecialFunction<1>, 0x20>,
-    FrameBit<io::output::SpecialFunction<2>, 0x21>,
-    FrameBit<io::output::SpecialFunction<3>, 0x22>,
-    FrameBit<io::output::SpecialFunction<4>, 0x23>,
-    // 0x24 - Reserved.
-    // 0x25 - Reserved.
-    // 0x26 - Reserved.
-    // 0x27 - Reserved.
+    FrameBit<io::input::RingOmitRedClearance<1>, 0x20>,
+    FrameBit<io::input::RingOmitRedClearance<2>, 0x21>,
+    FrameBit<io::input::RingPedestrianRecycle<1>, 0x22>,
+    FrameBit<io::input::RingPedestrianRecycle<2>, 0x23>,
+    FrameBit<io::input::UnitAlternateSequenceA, 0x24>,
+    FrameBit<io::input::UnitAlternateSequenceB, 0x25>,
+    FrameBit<io::input::UnitAlternateSequenceC, 0x26>,
+    FrameBit<io::input::UnitAlternateSequenceD, 0x27>,
     // ----------------------------------------------
     // Byte 5
     // ----------------------------------------------
-    FrameBit<io::output::StatusBitA_Ring_1, 0x28>,
-    FrameBit<io::output::StatusBitB_Ring_1, 0x29>,
-    FrameBit<io::output::StatusBitC_Ring_1, 0x2A>,
-    FrameBit<io::output::StatusBitA_Ring_2, 0x2B>,
-    FrameBit<io::output::StatusBitB_Ring_2, 0x2C>,
-    FrameBit<io::output::StatusBitC_Ring_2, 0x2D>
-    // 0x2E - Designated Input
-    // 0x2F - Designated Input
+    FrameBit<io::input::PhasePhaseOmit<1>, 0x28>,
+    FrameBit<io::input::PhasePhaseOmit<2>, 0x29>,
+    FrameBit<io::input::PhasePhaseOmit<3>, 0x2A>,
+    FrameBit<io::input::PhasePhaseOmit<4>, 0x2B>,
+    FrameBit<io::input::PhasePhaseOmit<5>, 0x2C>,
+    FrameBit<io::input::PhasePhaseOmit<6>, 0x2D>,
+    FrameBit<io::input::PhasePhaseOmit<7>, 0x2E>,
+    FrameBit<io::input::PhasePhaseOmit<8>, 0x2F>,
     // ----------------------------------------------
     // Byte 6
     // ----------------------------------------------
-    // 0x30 - Designated Input
-    // 0x31 - Designated Input
-    // 0x32 - Designated Input
-    // 0x33 - Designated Input
-    // 0x34 - Designated Input
-    // 0x35 - Designated Input
-    // 0x36 - Designated Input
-    // 0x37 - Designated Input
+    FrameBit<io::input::PhasePedOmit<1>, 0x30>,
+    FrameBit<io::input::PhasePedOmit<2>, 0x31>,
+    FrameBit<io::input::PhasePedOmit<3>, 0x32>,
+    FrameBit<io::input::PhasePedOmit<4>, 0x33>,
+    FrameBit<io::input::PhasePedOmit<5>, 0x34>,
+    FrameBit<io::input::PhasePedOmit<6>, 0x35>,
+    FrameBit<io::input::PhasePedOmit<7>, 0x36>,
+    FrameBit<io::input::PhasePedOmit<8>, 0x37>,
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    // 0x38 - Designated Input
-    // 0x39 - Designated Input
-    // 0x3A - Designated Input
-    // 0x3B - Designated Input
-    // 0x3C - Designated Input
-    // 0x3D - Designated Input
-    // 0x3E - Designated Input
-    // 0x3F - Designated Input
+    FrameBit<io::input::UnitTimingPlanA, 0x38>,
+    FrameBit<io::input::UnitTimingPlanB, 0x39>,
+    FrameBit<io::input::UnitTimingPlanC, 0x3A>,
+    FrameBit<io::input::UnitTimingPlanD, 0x3B>
+    // 0x3C - Reserved
+    // 0x3D - Reserved
+    // 0x3E - Reserved
+    // 0x3F - Reserved
 >;
 
 template<>
-struct FrameType<12>
+struct FrameType<140>
 {
-  using type = IoRequestTfBiu_3;
+  using type = TfBiu03_InputFrame;
 };
 
-using IoRequestTfBiu_4
+// ----------------------------------------------
+// Frame Type 141
+// ----------------------------------------------
+using TfBiu04_InputFrame
 = Frame<
-    0x03, // TF BIU#1 Address = 3
-    0x0D, // FrameID = 13
-    8,    // 8 Bytes
-    SSR_CommandFrameType,
+    0x03, // TF BIU#4 Address = 3
+    0x8C, // FrameID = 141
+    8,
+    SSG_ResponseFrameType,
+    // ----------------------------------------------
+    // Byte 0 - Address, 0x03 for TF BIU#4
+    // Byte 1 - Control, always 0x83
+    // Byte 2 - FrameID, 0x8C for Type 140 Response Frame
     // ----------------------------------------------
     // Byte 3
-    // ----------------------------------------------
-    FrameBit<io::output::PhaseOn<1>, 0x18>,
-    FrameBit<io::output::PhaseOn<2>, 0x19>,
-    FrameBit<io::output::PhaseOn<3>, 0x1A>,
-    FrameBit<io::output::PhaseOn<4>, 0x1B>,
-    FrameBit<io::output::PhaseOn<5>, 0x1C>,
-    FrameBit<io::output::PhaseOn<6>, 0x1D>,
-    FrameBit<io::output::PhaseOn<7>, 0x1E>,
-    FrameBit<io::output::PhaseOn<8>, 0x1F>,
+    //-----------------------------------------------
+    // 0x18 - Designated Output
+    // 0x19 - Designated Output
+    // 0x1A - Designated Output
+    // 0x1B - Designated Output
+    // 0x1C - Designated Output
+    // 0x1D - Designated Output
+    // 0x1E - Designated Output
+    // 0x1E- Designated Output
     // ----------------------------------------------
     // Byte 4
-    // ----------------------------------------------
-    FrameBit<io::output::PhaseNext<1>, 0x20>,
-    FrameBit<io::output::PhaseNext<2>, 0x21>,
-    FrameBit<io::output::PhaseNext<3>, 0x22>,
-    FrameBit<io::output::PhaseNext<4>, 0x23>,
-    FrameBit<io::output::PhaseNext<5>, 0x24>,
-    FrameBit<io::output::PhaseNext<6>, 0x25>,
-    FrameBit<io::output::PhaseNext<7>, 0x26>,
-    // 0x27 - Reserved.
+    // 0x20 - Designated Output
+    FrameBit<io::input::UnitSystemAddressBit_0 , 0x21>,
+    FrameBit<io::input::UnitSystemAddressBit_1 , 0x22>,
+    FrameBit<io::input::UnitSystemAddressBit_2 , 0x23>,
+    FrameBit<io::input::UnitSystemAddressBit_3 , 0x24>,
+    FrameBit<io::input::UnitSystemAddressBit_4 , 0x25>,
+    // 0x26 - Spare
+    // 0x27 - Spare
     // ----------------------------------------------
     // Byte 5
     // ----------------------------------------------
-    FrameBit<io::output::PhaseNext<8>, 0x28>,
-    FrameBit<io::output::PhaseCheck<1>, 0x29>,
-    FrameBit<io::output::PhaseCheck<2>, 0x2A>,
-    FrameBit<io::output::PhaseCheck<3>, 0x2B>,
-    FrameBit<io::output::PhaseCheck<4>, 0x2C>,
-    FrameBit<io::output::PhaseCheck<5>, 0x2D>,
-    FrameBit<io::output::PhaseCheck<6>, 0x2E>,
-    FrameBit<io::output::PhaseCheck<7>, 0x2F>,
+    // 0x28 - Spare
+    // 0x29 - Spare
+    // 0x2A - Spare
+    // 0x2B - Reserved
+    // 0x2C - Reserved
+    // 0x2D - Reserved
+    // 0x2E - Reserved
+    // 0x2F - Reserved
     // ----------------------------------------------
     // Byte 6
     // ----------------------------------------------
-    FrameBit<io::output::PhaseCheck<8>, 0x30>
-    // 0x31 - Designated Input
-    // 0x32 - Designated Input
-    // 0x33 - Designated Input
-    // 0x34 - Designated Input
-    // 0x35 - Designated Input
-    // 0x36 - Spare
-    // 0x37 - Spare
+    FrameBit<io::input::PhasePedOmit<1>, 0x30>,
+    FrameBit<io::input::PhasePedOmit<2>, 0x31>,
+    FrameBit<io::input::PhasePedOmit<3>, 0x32>,
+    FrameBit<io::input::PhasePedOmit<4>, 0x33>,
+    FrameBit<io::input::PhasePedOmit<5>, 0x34>,
+    FrameBit<io::input::PhasePedOmit<6>, 0x35>,
+    FrameBit<io::input::PhasePedOmit<7>, 0x36>,
+    FrameBit<io::input::PhasePedOmit<8>, 0x37>,
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    // 0x38 - Spare
-    // 0x39 - Spare
-    // 0x3A - Spare
-    // 0x3B - Designated Input
-    // 0x3C - Designated Input
-    // 0x3D - Designated Input
-    // 0x3E - Designated Input
-    // 0x3F - Designated Input
+    FrameBit<io::input::UnitOffset_1 , 0x38>,
+    FrameBit<io::input::UnitOffset_2 , 0x39>,
+    FrameBit<io::input::UnitOffset_3 , 0x3A>
+    // 0x3B - Spare
+    // 0x3C - Reserved
+    // 0x3D - Reserved
+    // 0x3E - Reserved
+    // 0x3F - Reserved
 >;
 
 template<>
-struct FrameType<13>
+struct FrameType<141>
 {
-  using type = IoRequestTfBiu_4;
+  using type = TfBiu04_InputFrame;
 };
-
-using OutputTransferFrame
-= Frame<
-    0xFF, // Broadcast address 255
-    0x12, // FrameID = 18
-    3,
-    SSR_CommandFrameType
->;
-
-template<>
-struct FrameType<18>
-{
-  using type = OutputTransferFrame;
-};
+//----------------------------------------------
 
 namespace {
 
