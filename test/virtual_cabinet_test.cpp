@@ -126,15 +126,15 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
   using namespace broadcast;
 
   CHECK(l_frame.id == 0x09);
-  CHECK(broadcast::variable<CUReportedDay>.value == 18);
-  CHECK(broadcast::variable<CUReportedMonth>.value == 3);
-  CHECK(broadcast::variable<CUReportedYear>.value == 22);
-  CHECK(broadcast::variable<CUReportedHour>.value == 17);
-  CHECK(broadcast::variable<CUReportedMinutes>.value == 32);
-  CHECK(broadcast::variable<CUReportedSeconds>.value == 0);
-  CHECK(broadcast::variable<CUReportedTenthsOfSeconds>.value == 0);
-  CHECK(broadcast::variable<CUReportedTFBIUPresence<1>>.value == Bit::On);
-  CHECK(broadcast::variable<CUReportedDETBIUPresence<2>>.value == Bit::On);
+  CHECK(broadcast::variable<CuReportedDay>.value == 18);
+  CHECK(broadcast::variable<CuReportedMonth>.value == 3);
+  CHECK(broadcast::variable<CuReportedYear>.value == 22);
+  CHECK(broadcast::variable<CuReportedHour>.value == 17);
+  CHECK(broadcast::variable<CuReportedMinutes>.value == 32);
+  CHECK(broadcast::variable<CuReportedSeconds>.value == 0);
+  CHECK(broadcast::variable<CuReportedTenthsOfSeconds>.value == 0);
+  CHECK(broadcast::variable<CuReportedTFBIUPresence<1>>.value == Bit::On);
+  CHECK(broadcast::variable<CuReportedDETBIUPresence<2>>.value == Bit::On);
 }
 
 TEST_CASE("Two channel IDs can be encoded")
