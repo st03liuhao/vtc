@@ -157,7 +157,13 @@ TEST_CASE("Type 0 Command Frame can be dispatched")
   CHECK(std::get<1>(result)[4] == 0x00);
 }
 
-
+TEST_CASE("Compile-time internal variable name")
+{
+  auto l_name_1 = variable_type_name<mmu::_24VoltMonitor_I>();
+  mmu::_24VoltMonitor_I l_frame;
+  auto l_name_2 = variable_type_name<decltype(l_frame)>();
+  CHECK(l_name_1 == l_name_2);
+}
 
 
 

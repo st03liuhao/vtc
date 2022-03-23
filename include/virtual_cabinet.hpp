@@ -73,6 +73,67 @@ struct Variable
 template<typename T>
 using ValueType = typename T::Variable::value_t;
 
+namespace {
+/* For getting variable name during compile time.
+
+   References:
+
+   1. StackOverflow: A standard way for getting variable name at compile time
+      https://stackoverflow.com/questions/38696440/a-standard-way-for-getting-variable-name-at-compile-time
+
+   2. Getting an Unmangled Type Name at Compile Time - a really useful and obscure technique
+      https://bitwizeshift.github.io/posts/2021/03/09/getting-an-unmangled-type-name-at-compile-time/
+ */
+
+template<std::size_t ...Is>
+constexpr auto substring_as_array(std::string_view str, std::index_sequence<Is...>)
+{
+  return std::array{str[Is]..., '\n'};
+}
+
+template<typename T>
+constexpr auto type_name_array()
+{
+#if defined(__clang__)
+  constexpr auto prefix   = std::string_view{"[T = "};
+  constexpr auto suffix   = std::string_view{"]"};
+  constexpr auto function = std::string_view{__PRETTY_FUNCTION__};
+#elif defined(__GNUC__)
+  constexpr auto prefix = std::string_view{"with T = "};
+  constexpr auto suffix = std::string_view{"]"};
+  constexpr auto function = std::string_view{__PRETTY_FUNCTION__};
+#elif defined(_MSC_VER)
+  constexpr auto prefix   = std::string_view{"type_name_array<"};
+  constexpr auto suffix   = std::string_view{">(void)"};
+  constexpr auto function = std::string_view{__FUNCSIG__};
+#else
+# error Unsupported compiler
+#endif
+
+  constexpr auto start = function.find(prefix) + prefix.size();
+  constexpr auto end = function.rfind(suffix);
+
+  static_assert(start < end);
+
+  constexpr auto name = function.substr(start, (end - start));
+  return substring_as_array(name, std::make_index_sequence<name.size()>{});
+}
+
+template<typename T>
+struct type_name_holder
+{
+  static inline constexpr auto value = type_name_array<T>();
+};
+
+template<typename T>
+constexpr auto variable_type_name() -> std::string_view
+{
+  constexpr auto &value = type_name_holder<T>::value;
+  return std::string_view{value.data(), value.size()};
+}
+
+} // end of namespace anonymous
+
 namespace cu {
 
 struct CuVariableType
