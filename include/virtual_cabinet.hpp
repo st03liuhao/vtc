@@ -2551,15 +2551,15 @@ using TfBiu04_InputFrame
     // 0x1C - Designated Output
     // 0x1D - Designated Output
     // 0x1E - Designated Output
-    // 0x1E- Designated Output
+    // 0x1E-  Designated Output
     // ----------------------------------------------
     // Byte 4
     // 0x20 - Designated Output
-    FrameBit<io::input::UnitSystemAddressBit_0 , 0x21>,
-    FrameBit<io::input::UnitSystemAddressBit_1 , 0x22>,
-    FrameBit<io::input::UnitSystemAddressBit_2 , 0x23>,
-    FrameBit<io::input::UnitSystemAddressBit_3 , 0x24>,
-    FrameBit<io::input::UnitSystemAddressBit_4 , 0x25>,
+    FrameBit<io::input::UnitSystemAddressBit_0, 0x21>,
+    FrameBit<io::input::UnitSystemAddressBit_1, 0x22>,
+    FrameBit<io::input::UnitSystemAddressBit_2, 0x23>,
+    FrameBit<io::input::UnitSystemAddressBit_3, 0x24>,
+    FrameBit<io::input::UnitSystemAddressBit_4, 0x25>,
     // 0x26 - Spare
     // 0x27 - Spare
     // ----------------------------------------------
@@ -2587,9 +2587,9 @@ using TfBiu04_InputFrame
     // ----------------------------------------------
     // Byte 7
     // ----------------------------------------------
-    FrameBit<io::input::UnitOffset_1 , 0x38>,
-    FrameBit<io::input::UnitOffset_2 , 0x39>,
-    FrameBit<io::input::UnitOffset_3 , 0x3A>
+    FrameBit<io::input::UnitOffset_1, 0x38>,
+    FrameBit<io::input::UnitOffset_2, 0x39>,
+    FrameBit<io::input::UnitOffset_3, 0x3A>
     // 0x3B - Spare
     // 0x3C - Reserved
     // 0x3D - Reserved
@@ -2602,8 +2602,223 @@ struct FrameType<141>
 {
   using type = TfBiu04_InputFrame;
 };
+
+/* DR BIU CallDataFrame should be transmitted only if Type 20 Frame
+   has been correctly received.
+
+   Bit 024 - 279:  Timestamp data nobody uses
+   Bit 280 - 295:  Det 1 - 16 Call Status Bit 0
+   Bit 296 - 311:  Det 1 - 16 Call Status Bit 1
+   
+   The two detector call status bits for each detector channel shall be
+   defined as:
+   
+   --------------------------------------
+   Bit 1   Bit 0  Definition            
+   --------------------------------------
+   0       0      No call, no change      
+   0       1      Constant call, no change
+   1       0      Call gone
+   1       1      New call
+   --------------------------------------
+   
+   The 16 detector timestamps for each detector channel shall contain
+   the value of the detector BIU interval time stamp generator at the 
+   instant in time when the detector call last changed status.
+   
+   The detector BIU internal timestamp generator is intended to provide 
+   the means by which precision timing information about detector calls
+   can be obtained, with a resolution of 1ms.
+   
+   It seems that nobody, neither controller nor detector BIU vendor seems
+   to actually implement the timestamp bits based on NEMA-TS2, and only
+   detector call status Bit 0 is needed without any timing information for
+   most applications.
+   
+   So, in Type 148 - 151 Frame below, we only use Bit 0, based on the above
+   rationale.
+ * */
+// ----------------------------------------------
+// Frame Type 148
+// ----------------------------------------------
+using DrBiu01_CallDataFrame
+= Frame<
+    0x08, // DR BIU#1 Address = 8
+    0x94, // FrameID = 148
+    39,
+    SSG_ResponseFrameType,
+// ----------------------------------------------
+// Byte 0 - Address, 0x08 for DR BIU#1
+// Byte 1 - Control, always 0x83
+// Byte 2 - FrameID, 0x94 for Type 148 Response Frame
 //----------------------------------------------
 
+// Byte 03 - 04 Timestamp Word for Det 01
+// ...
+// Byte 33 - 34 Timestamp Word for Det 16
+//----------------------------------------------
+// Byte 35 - 36 Det 1 - Det 16 Call Status Bit 0
+//----------------------------------------------
+    FrameBit<io::input::VehicleDetCall<0x01>, 0x0118>, // Bit 280
+    FrameBit<io::input::VehicleDetCall<0x02>, 0x0119>,
+    FrameBit<io::input::VehicleDetCall<0x03>, 0x011A>,
+    FrameBit<io::input::VehicleDetCall<0x04>, 0x011B>,
+    FrameBit<io::input::VehicleDetCall<0x05>, 0x011C>,
+    FrameBit<io::input::VehicleDetCall<0x06>, 0x011D>,
+    FrameBit<io::input::VehicleDetCall<0x07>, 0x011E>,
+    FrameBit<io::input::VehicleDetCall<0x08>, 0x011F>,
+    FrameBit<io::input::VehicleDetCall<0x09>, 0x0120>,
+    FrameBit<io::input::VehicleDetCall<0x0A>, 0x0121>,
+    FrameBit<io::input::VehicleDetCall<0x0B>, 0x0122>,
+    FrameBit<io::input::VehicleDetCall<0x0C>, 0x0123>,
+    FrameBit<io::input::VehicleDetCall<0x0D>, 0x0124>,
+    FrameBit<io::input::VehicleDetCall<0x0E>, 0x0125>,
+    FrameBit<io::input::VehicleDetCall<0x0F>, 0x0126>,
+    FrameBit<io::input::VehicleDetCall<0x10>, 0x0127>  // Bit 295
+>;
+
+template<>
+struct FrameType<148>
+{
+  using type = DrBiu01_CallDataFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 149
+// ----------------------------------------------
+using DrBiu02_CallDataFrame
+= Frame<
+    0x09, // DR BIU#2 Address = 9
+    0x95, // FrameID = 149
+    39,
+    SSG_ResponseFrameType,
+// ----------------------------------------------
+// Byte 0 - Address, 0x09 for DR BIU#2
+// Byte 1 - Control, always 0x83
+// Byte 2 - FrameID, 0x95 for Type 149 Response Frame
+//----------------------------------------------
+
+// Byte 03 - 04 Timestamp Word for Det 17
+// ...
+// Byte 33 - 34 Timestamp Word for Det 32
+//----------------------------------------------
+// Byte 35 - 36 Det 17 - Det 32 Call Status Bit 0
+//----------------------------------------------
+    FrameBit<io::input::VehicleDetCall<0x01>, 0x0118>, // Bit 280
+    FrameBit<io::input::VehicleDetCall<0x12>, 0x0119>,
+    FrameBit<io::input::VehicleDetCall<0x13>, 0x011A>,
+    FrameBit<io::input::VehicleDetCall<0x14>, 0x011B>,
+    FrameBit<io::input::VehicleDetCall<0x15>, 0x011C>,
+    FrameBit<io::input::VehicleDetCall<0x16>, 0x011D>,
+    FrameBit<io::input::VehicleDetCall<0x17>, 0x011E>,
+    FrameBit<io::input::VehicleDetCall<0x18>, 0x011F>,
+    FrameBit<io::input::VehicleDetCall<0x19>, 0x0120>,
+    FrameBit<io::input::VehicleDetCall<0x1A>, 0x0121>,
+    FrameBit<io::input::VehicleDetCall<0x1B>, 0x0122>,
+    FrameBit<io::input::VehicleDetCall<0x1C>, 0x0123>,
+    FrameBit<io::input::VehicleDetCall<0x1D>, 0x0124>,
+    FrameBit<io::input::VehicleDetCall<0x1E>, 0x0125>,
+    FrameBit<io::input::VehicleDetCall<0x1F>, 0x0126>,
+    FrameBit<io::input::VehicleDetCall<0x20>, 0x0127>  // Bit 295
+>;
+
+template<>
+struct FrameType<149>
+{
+  using type = DrBiu02_CallDataFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 150
+// ----------------------------------------------
+using DrBiu03_CallDataFrame
+= Frame<
+    0x0A, // DR BIU#3 Address = 10
+    0x96, // FrameID = 150
+    39,
+    SSG_ResponseFrameType,
+// ----------------------------------------------
+// Byte 0 - Address, 0x08 for DR BIU#3
+// Byte 1 - Control, always 0x83
+// Byte 2 - FrameID, 0x94 for Type 148 Response Frame
+//----------------------------------------------
+
+// Byte 03 - 04 Timestamp Word for Det 33
+// ...
+// Byte 33 - 34 Timestamp Word for Det 48
+//----------------------------------------------
+// Byte 35 - 36 Det 33 - Det 48 Call Status Bit 0
+//----------------------------------------------
+    FrameBit<io::input::VehicleDetCall<0x21>, 0x0118>, // Bit 280
+    FrameBit<io::input::VehicleDetCall<0x22>, 0x0119>,
+    FrameBit<io::input::VehicleDetCall<0x23>, 0x011A>,
+    FrameBit<io::input::VehicleDetCall<0x24>, 0x011B>,
+    FrameBit<io::input::VehicleDetCall<0x25>, 0x011C>,
+    FrameBit<io::input::VehicleDetCall<0x26>, 0x011D>,
+    FrameBit<io::input::VehicleDetCall<0x27>, 0x011E>,
+    FrameBit<io::input::VehicleDetCall<0x28>, 0x011F>,
+    FrameBit<io::input::VehicleDetCall<0x29>, 0x0120>,
+    FrameBit<io::input::VehicleDetCall<0x2A>, 0x0121>,
+    FrameBit<io::input::VehicleDetCall<0x2B>, 0x0122>,
+    FrameBit<io::input::VehicleDetCall<0x2C>, 0x0123>,
+    FrameBit<io::input::VehicleDetCall<0x2D>, 0x0124>,
+    FrameBit<io::input::VehicleDetCall<0x2E>, 0x0125>,
+    FrameBit<io::input::VehicleDetCall<0x2F>, 0x0126>,
+    FrameBit<io::input::VehicleDetCall<0x30>, 0x0127> // Bit 295
+>;
+
+template<>
+struct FrameType<150>
+{
+  using type = DrBiu03_CallDataFrame;
+};
+
+// ----------------------------------------------
+// Frame Type 151
+// ----------------------------------------------
+using DrBiu04_CallDataFrame
+= Frame<
+    0x0B, // DR BIU#4 Address = 11
+    0x97, // FrameID = 151
+    39,
+    SSG_ResponseFrameType,
+// ----------------------------------------------
+// Byte 0 - Address, 0x0B for DR BIU#4
+// Byte 1 - Control, always 0x83
+// Byte 2 - FrameID, 0x97 for Type 151 Response Frame
+//----------------------------------------------
+
+// Byte 03 - 04 Timestamp Word for Det 49
+// ...
+// Byte 33 - 34 Timestamp Word for Det 64
+//----------------------------------------------
+// Byte 35 - 36 Det 49 - Det 64 Call Status Bit 0
+//----------------------------------------------
+    FrameBit<io::input::VehicleDetCall<0x31>, 0x0118>, // Bit 280
+    FrameBit<io::input::VehicleDetCall<0x32>, 0x0119>,
+    FrameBit<io::input::VehicleDetCall<0x33>, 0x011A>,
+    FrameBit<io::input::VehicleDetCall<0x34>, 0x011B>,
+    FrameBit<io::input::VehicleDetCall<0x35>, 0x011C>,
+    FrameBit<io::input::VehicleDetCall<0x36>, 0x011D>,
+    FrameBit<io::input::VehicleDetCall<0x37>, 0x011E>,
+    FrameBit<io::input::VehicleDetCall<0x38>, 0x011F>,
+    FrameBit<io::input::VehicleDetCall<0x39>, 0x0120>,
+    FrameBit<io::input::VehicleDetCall<0x3A>, 0x0121>,
+    FrameBit<io::input::VehicleDetCall<0x3B>, 0x0122>,
+    FrameBit<io::input::VehicleDetCall<0x3C>, 0x0123>,
+    FrameBit<io::input::VehicleDetCall<0x3D>, 0x0124>,
+    FrameBit<io::input::VehicleDetCall<0x3E>, 0x0125>,
+    FrameBit<io::input::VehicleDetCall<0x3F>, 0x0126>,
+    FrameBit<io::input::VehicleDetCall<0x40>, 0x0127> // Bit 295
+>;
+
+template<>
+struct FrameType<151>
+{
+  using type = DrBiu04_CallDataFrame;
+};
+
+//-------------------------------------------------
 namespace {
 
 template<Byte _CommandFrameID, Byte _ResponseFrameID>
