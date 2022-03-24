@@ -21,9 +21,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
-#include <virtual_cabinet.hpp>
+#include <virtual_traffic_cabinet.hpp>
 
-using namespace vc;
+using namespace vtc;
 
 TEST_CASE("io::output::NotActive can be set")
 {
