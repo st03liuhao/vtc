@@ -19,15 +19,15 @@ You should have received a copy of the GNU General Public License with
 this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef _VIRTUAL_CABINET
-#define _VIRTUAL_CABINET
+#ifndef _VIRTUAL_TRAFFIC_CABINET
+#define _VIRTUAL_TRAFFIC_CABINET
 
 #include <array>
 #include <atomic>
 #include <functional>
 #include <span>
 
-namespace vc {
+namespace vtc {
 
 // A dirty trick to generate template specialization tag.
 #define AUTO_TAG_ID __LINE__
