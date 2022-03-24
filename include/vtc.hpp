@@ -1,5 +1,5 @@
 /*
-C++ Virtualization Library of Traffic Control Cabinet
+C++ Virtualization Library of Traffic Cabinet
 Copyright (C) 2022  Wuping Xin
 
 GNU GPL v3 License

@@ -21,11 +21,35 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
-#include <virtual_traffic_cabinet.hpp>
+#include <vtc.hpp>
 
 using namespace vtc;
 
-TEST_CASE("io::output::NotActive can be set")
+TEST_CASE("Channel composition channel IDs can be encoded as single index")
+{
+  Byte a = 1;
+  Byte b = 2;
+
+  Index I = a << 8 | b;
+  CHECK(I == 0x0102);
+}
+
+TEST_CASE("Compile-time internal variable name can be retrieved")
+{
+  auto l_name_1 = variable_type_name<mmu::_24VoltMonitor_I>();
+  mmu::_24VoltMonitor_I l_var;
+  CHECK(l_var.value == Bit::Off);
+  auto l_name_2 = variable_type_name<decltype(l_var)>();
+  CHECK(l_name_1 == l_name_2);
+}
+
+TEST_CASE("FrameBit can be instantiated")
+{
+  serial::FrameBit<mmu::LoadSwitchFlash, 127> l_framebit;
+  CHECK(l_framebit.pos == 127);
+}
+
+TEST_CASE("Output variable NotActive can be set")
 {
   using namespace io;
 
@@ -40,7 +64,7 @@ TEST_CASE("io::output::NotActive can be set")
   CHECK(std::is_same_v<output::NotActive::type, IoVariableType>);
 }
 
-TEST_CASE("io::output::ChannelGreenWalkDriver can be set")
+TEST_CASE("Output variable ChannelGreenWalkDriver can be set")
 {
   using namespace io;
 
@@ -51,7 +75,7 @@ TEST_CASE("io::output::ChannelGreenWalkDriver can be set")
   CHECK(io::variable<output::ChannelGreenWalkDriver<1>>.value == Bit::On);
 }
 
-TEST_CASE("mmu::LoadSwitchFlash can be set")
+TEST_CASE("MMU variable LoadSwitchFlash can be set")
 {
   using namespace mmu;
 
@@ -62,15 +86,7 @@ TEST_CASE("mmu::LoadSwitchFlash can be set")
   CHECK(mmu::variable<LoadSwitchFlash>.value == Bit::On);
 }
 
-TEST_CASE("FrameBit can be instantiated")
-{
-  using namespace mmu;
-
-  serial::FrameBit<LoadSwitchFlash, 127> l_framebit;
-  CHECK(l_framebit.pos == 127);
-}
-
-TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
+TEST_CASE("MMU variable LoadSwitchDriverFrame can be parsed")
 {
   using namespace mmu;
 
@@ -98,7 +114,7 @@ TEST_CASE("mmu::LoadSwitchDriverFrame can be parsed")
   CHECK(mmu::variable<ChannelGreenWalkDriver<4>>.value == Bit::Off);
 }
 
-TEST_CASE("mmu::InputStatusRequestFrame can be parsed")
+TEST_CASE("Type 1 serial frame InputStatusRequestFrame can be parsed")
 {
   serial::MMUInputStatusRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x01};
@@ -107,7 +123,7 @@ TEST_CASE("mmu::InputStatusRequestFrame can be parsed")
   CHECK(l_frame.id == 0x01);
 }
 
-TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
+TEST_CASE("Type 3 serial frame MMUProgrammingRequestFrame can be parsed")
 {
   serial::MMUProgrammingRequestFrame l_frame;
   std::array<Byte, 3> l_data = {0x10, 0x83, 0x03};
@@ -116,7 +132,20 @@ TEST_CASE("mmu::MMUProgrammingRequestFrame can be parsed")
   CHECK(l_frame.id == 0x03);
 }
 
-TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
+TEST_CASE("Type 3 serial frame MMUProgrammingRequestFrame can be dispatched")
+{
+  // Type 3 Command Frame bytes
+  std::array<Byte, 3> l_data_in = {0x10, 0x83, 0x03};
+  mmu::variable<mmu::ChannelCompatibilityStatus<0x01, 0x02>>.value = Bit::On;
+  auto result = serial::Dispatch(l_data_in);
+  CHECK(std::get<0>(result));
+  // Tye 131 Response Frame bytes
+  CHECK(std::get<1>(result).size() == serial::FrameType<131>::type::bytesize);
+  CHECK(std::get<1>(result)[3] == 0x01); // Byte 3 represents CH1-CH2 compatibility
+  CHECK(std::get<1>(result)[4] == 0x00);
+}
+
+TEST_CASE("Type 9 serial frame DateTimeBroadcastFrame can be parsed")
 {
   serial::DateTimeBroadcastFrame l_frame;
   std::array<Byte, 12>     // M     D     Y     H     M     S     0.1   TF    DET
@@ -136,35 +165,3 @@ TEST_CASE("MMU can receive Date and Time Broadcast Command Frame Type 0")
   CHECK(broadcast::variable<CuReportedTfBiuPresence<1>>.value == Bit::On);
   CHECK(broadcast::variable<CuReportedDrBiuPresence<2>>.value == Bit::On);
 }
-
-TEST_CASE("Two channel IDs can be encoded")
-{
-  Byte a = 1;
-  Byte b = 2;
-
-  Index I = a << 8 | b;
-  CHECK(I == 0x0102);
-}
-
-TEST_CASE("Type 0 Command Frame can be dispatched")
-{
-  std::array<Byte, 3> l_data_in = {0x10, 0x83, 0x03};
-  mmu::variable<mmu::ChannelCompatibilityStatus<0x01, 0x02>>.value = Bit::On;
-  auto result = serial::Dispatch(l_data_in);
-  CHECK(std::get<0>(result));
-  CHECK(std::get<1>(result).size() == serial::FrameType<131>::type::bytesize);
-  CHECK(std::get<1>(result)[3] == 0x01);
-  CHECK(std::get<1>(result)[4] == 0x00);
-}
-
-TEST_CASE("Compile-time internal variable name")
-{
-  auto l_name_1 = variable_type_name<mmu::_24VoltMonitor_I>();
-  mmu::_24VoltMonitor_I l_var;
-  auto l_name_2 = variable_type_name<decltype(l_var)>();
-  CHECK(l_name_1 == l_name_2);
-}
-
-
-
-
